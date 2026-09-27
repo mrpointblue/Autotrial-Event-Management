@@ -15,12 +15,7 @@ class DriverInput(Input):
     club: str = ''
     adac_number: str = ''
 
-class VehicleInput(Input):
-    manufacturer: str = Field(min_length=1,max_length=100)
-    model: str = Field(min_length=1,max_length=100)
-    year: str = ''
-    plate: str = ''
-    tyres: str = ''
+class HcfInput(Input):
     kind: Literal['offroad','atv','quad','sbs'] = 'offroad'
     length_cm: int | None = Field(default=None,gt=0)
     width_cm: int | None = Field(default=None,gt=0)
@@ -29,9 +24,17 @@ class VehicleInput(Input):
     rear_lock: bool = False
     traction_control: bool = False
     closed_body: bool = False
+
+class VehicleInput(HcfInput):
+    manufacturer: str = Field(min_length=1,max_length=100)
+    model: str = Field(min_length=1,max_length=100)
+    year: str = ''
+    plate: str = ''
+    tyres: str = ''
     class_code: str
-    hcf: Decimal = Field(gt=0, max_digits=12, decimal_places=6, allow_inf_nan=False)
-    hcf_note: str = Field(default='Technische Abnahme: manuell bestätigt',min_length=1)
+    hcf_mode: Literal['auto', 'manual'] = 'auto'
+    hcf: Decimal | None = Field(default=None,gt=0, max_digits=12, decimal_places=6, allow_inf_nan=False)
+    hcf_note: str = ''
     @field_validator('class_code')
     @classmethod
     def valid_class(cls,v):

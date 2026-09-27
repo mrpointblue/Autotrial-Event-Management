@@ -54,9 +54,16 @@ Diese Version übernimmt Endwerte inkl. HCF; sie dividiert Summen niemals erneut
 Falls die vorhandenen Papierkarten nur Rohwerte enthalten, muss vor dem echten
 Einsatz die Eingabe um HCF-relevante und feste Punkte ergänzt werden.
 
-Der HCF wird durch die technische Abnahme manuell bestätigt. Eine automatische
-Berechnung einschließlich Rundung, SbS-Zuordnung und Q2-Grenzen ist noch nicht
-freigegeben. Die Reglementformeln sind in `docs/rules-2026.md` dokumentiert.
+Der HCF wird für Geländewagen, ATV und Quad automatisch aus den Maßen in ganzen
+cm und den fahrzeugartspezifischen Korrekturen vorgeschlagen. Basisformel und
+Prozentkorrekturen erscheinen direkt beim Anlegen. Korrekturen werden addiert,
+anschließend auf die Basis angewandt. Es erfolgt keine zusätzliche Rundung.
+Beim Speichern berechnet das Backend den Wert erneut. Eine manuelle Bestätigung
+oder Korrektur benötigt einen positiven HCF und eine Begründung der technischen
+Abnahme. Für Side-by-Side bleibt die Bestätigung manuell, da die vorliegende
+Grundlage keine eindeutige Formel zuordnet. Die Klasse wird weiterhin durch die
+Abnahme ausgewählt, nicht automatisch aus HCF-Grenzen abgeleitet.
+Die Reglementformeln sind in `docs/rules-2026.md` dokumentiert.
 Q-Minis steht im Nennformular, hat aber keine Regeldefinition im gelieferten
 Reglement und ist deshalb noch nicht als Wertungsklasse aktiviert.
 
@@ -111,7 +118,6 @@ für spätere Versionen; vor Schemaänderungen gesicherte Migrationen ergänzen.
 ## Nächste Ausbaustufe
 
 Original-Bordkartenlayout und Punkteformat abstimmen; Snapshot-Korrekturen nur
-mit Änderungsprotokoll; vollständige Stammdatenbearbeitung; HCF-Rechner nach
-fachlicher Freigabe; Anmeldung/Rollen und Sicherungsoberfläche; signierte Releases
+mit Änderungsprotokoll; vollständige Stammdatenbearbeitung; fachliche Freigabe von Rundung und SbS-Formel; Anmeldung/Rollen und Sicherungsoberfläche; signierte Releases
 und Images für amd64/arm64. Automatische Updates und GHCR-Publishing sind noch
 nicht eingerichtet.

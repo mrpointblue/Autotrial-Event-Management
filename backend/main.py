@@ -12,6 +12,8 @@ from sqlalchemy.orm.exc import StaleDataError
 from backend.database import Base, engine, get_db
 from backend.models import CLASSES, Driver, Vehicle, DriverVehicle, Event, Entry
 from backend.schemas import DriverInput, VehicleInput, EventInput, LinkInput, EntryInput, ScoreInput
+from backend.services.hcf import calculate_hcf, vehicle_values
+from backend.schemas import HcfInput
 from backend.services.scoring import save_scores, class_progress, ranked_results
 
 @asynccontextmanager
@@ -71,12 +73,16 @@ def vehicles(db:Session=Depends(get_db)): return list(db.scalars(select(Vehicle)
 
 @app.post('/api/vehicles',status_code=201)
 def create_vehicle(data:VehicleInput,db:Session=Depends(get_db)):
-    row=Vehicle(**data.model_dump()); db.add(row); commit(db); return row
+    try: values=vehicle_values(data)
+    except ValueError as error: raise HTTPException(422,str(error))
+    row=Vehicle(**values); db.add(row); commit(db); return row
 
 @app.put('/api/vehicles/{vehicle_id}')
 def edit_vehicle(vehicle_id:int,data:VehicleInput,db:Session=Depends(get_db)):
     row=get(db,Vehicle,vehicle_id)
-    for key,value in data.model_dump().items(): setattr(row,key,value)
+    try: values=vehicle_values(data)
+    except ValueError as error: raise HTTPException(422,str(error))
+    for key,value in values.items(): setattr(row,key,value)
     commit(db); return row
 
 @app.put('/api/drivers/{driver_id}/vehicles')
@@ -167,3 +173,9 @@ def update_checkin(entry_id:int,data:CheckinInput,db:Session=Depends(get_db)):
     for key,value in data.model_dump(exclude={'version'}).items(): setattr(row,key,value)
     row.version += 1
     commit(db); return row
+
+
+@app.post('/api/hcf/preview')
+def hcf_preview(data:HcfInput):
+    try: return calculate_hcf(data)
+    except ValueError as error: raise HTTPException(422,str(error))

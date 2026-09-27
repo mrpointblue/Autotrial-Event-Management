@@ -74,3 +74,39 @@ if(score)score.addEventListener('submit',event=>{event.preventDefault();submit(s
   show(result.status==='niw'?'NiW gespeichert.':result.status==='complete'?'Bordkarte vollständig gespeichert.':'Zwischenstand gespeichert – Bordkarte bleibt offen.');
   document.getElementById('score-editor').hidden=true;lookup.reset();lookup.elements.start_number.focus();await refreshProgress();
 });});
+
+const vehicleForm=document.getElementById('vehicle-form');
+if(vehicleForm){
+  const mode=vehicleForm.elements.hcf_mode, kind=vehicleForm.elements.kind;
+  const output=document.getElementById('hcf-preview');
+  let revision=0, timer;
+  function updateHcf(){
+    const current=++revision;
+    clearTimeout(timer);
+    const sbs=kind.value==='sbs';
+    mode.querySelector('option[value="auto"]').disabled=sbs;
+    if(sbs)mode.value='manual';
+    const manual=mode.value==='manual';
+    document.getElementById('hcf-manual').hidden=!manual;
+    vehicleForm.elements.hcf.required=manual;
+    vehicleForm.elements.hcf_note.required=manual;
+    for(const key of ['length_cm','width_cm','wheelbase_cm'])vehicleForm.elements[key].required=!manual;
+    output.textContent=sbs?'Side-by-Side: manuelle Bestätigung erforderlich.':'Berechnung wird aktualisiert …';
+    document.getElementById('hcf-formula').textContent='';
+    document.getElementById('hcf-corrections').textContent='';
+    if(sbs)return;
+    timer=setTimeout(async()=>{
+      const all=values(vehicleForm),data={};
+      for(const key of ['kind','length_cm','width_cm','wheelbase_cm','front_lock','rear_lock','traction_control','closed_body'])data[key]=all[key];
+      try{
+        const result=await api('/api/hcf/preview',data);
+        if(current!==revision)return;
+        output.textContent=`Berechneter HCF: ${result.hcf.replace('.',',')} · Basis: ${result.base.replace('.',',')}`;
+        document.getElementById('hcf-formula').textContent=result.formula;
+        document.getElementById('hcf-corrections').textContent=(result.corrections.map(c=>`${c.label}: ${c.percent>0?'+':''}${c.percent} %`).join(' · ')||'Keine Korrekturen')+` → insgesamt ${result.correction_percent} %`;
+      }catch(error){if(current===revision)output.textContent=error.message;}
+    },180);
+  }
+  for(const key of ['kind','length_cm','width_cm','wheelbase_cm','front_lock','rear_lock','traction_control','closed_body','hcf_mode'])vehicleForm.elements[key].addEventListener('input',updateHcf);
+  updateHcf();
+}

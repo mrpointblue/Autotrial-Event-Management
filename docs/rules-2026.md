@@ -10,7 +10,7 @@ Originaldateien wurden nicht verändert und werden nicht im Code-Repository vert
 | Quelle | Regel | Umsetzung v0.1 |
 | --- | --- | --- |
 | Reglement S. 1, §2 | Fahrer startet einmal, darf mehrfach Beifahrer sein | unique(event, driver); Beifahrertext ohne Exklusivität |
-| S. 2–3, §3 | O1/O2/S1/S2/S3/V1/V2/P/J/Q1/Q2a/Q2b/SbS; Abnahme entscheidet | Klassenvalidierung, manuell bestätigter HCF |
+| S. 2–3, §3 | O1/O2/S1/S2/S3/V1/V2/P/J/Q1/Q2a/Q2b/SbS; Abnahme entscheidet | Klassenvalidierung, automatischer HCF-Vorschlag mit begründeter manueller Korrektur |
 | S. 8, §4 | Papierabnahme vor Ausgabe der Bordkarte | Druck benötigt bestätigte Papier- und technische Abnahme |
 | S. 8, §5 | Papierkarte alleinige Wertungsgrundlage; Verlust/Nichtabgabe/Verspätung führen zum Ausschluss | missing bleibt offen bis begründete NiW-Entscheidung |
 | S. 9–11, §6 | 8/20/40/40 HCF-relevant, andere Strafen unverändert | Eingabe fertiger Endwerte; keine pauschale HCF-Division |
@@ -18,7 +18,7 @@ Originaldateien wurden nicht verändert und werden nicht im Code-Repository vert
 | S. 11, §6.2 | kleinste Summe gewinnt; Gleichstand gleicher Rang, Folgeplatz frei | Decimal-Summe, Wettbewerbsrangfolge |
 | Nennformular S. 1 | Person, Kontakt, Club, ADAC, Beifahrer, Technik, Klasse/HCF, bezahlt/Abnahme | Felder im Stamm bzw. Entry; Papierunterschriften werden geprüft |
 
-## HCF-Formel für spätere automatische Berechnung
+## Implementierte HCF-Berechnung
 
 Basis = ((Länge − L)/100) + ((Breite − B)/100 × 2,6)
       + ((Radstand − R)/100 × 2,6) + 1
@@ -43,3 +43,10 @@ Pokal-/Helferwertung oder automatische Entscheidung über technische Zulassung.
 900-Punkte-Sonderfälle und Sektionsabbruch werden auf Papier beurteilt; die
 Software erfindet sie nicht aus den Summen. Drucklayout ist ein erster Entwurf,
 nicht das amtliche Nennformular und noch keine bestätigte vorhandene Bordkarte.
+
+Die automatische Berechnung verwendet Decimal ohne zusätzliche Rundung. Die
+Summe der Prozentkorrekturen wird einmal auf die Basis angewandt. Beispiel:
+343/146/203 cm ergibt Basis 1,872; eine Sperre ergibt HCF 1,6848. Automatische
+API-Speicherung benötigt alle Maße. `hcf_mode=manual` benötigt HCF und Begründung.
+Der verwendete Rechenweg bzw. die Begründung wird im HCF-Vermerk gespeichert
+und mit dem Fahrzeug in neue Nennungen übernommen. Alte Snapshots bleiben gleich.

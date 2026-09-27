@@ -13,6 +13,7 @@ def client():
     with TestClient(app) as c: yield c
 
 def post(c,path,data):
+    if path=='vehicles' and 'hcf' in data: data.update(hcf_mode='manual',hcf_note='Bestandsfahrzeug, Abnahme bestätigt')
     r=c.post('/api/'+path,json=data)
     assert r.status_code==201,r.text
     return r.json()
@@ -33,7 +34,7 @@ def score(c,e,points,**kw):
 def test_shared_vehicle_snapshot_defaults_and_unique_entry(client):
     event,vehicle,entries=setup(client)
     assert len({e['vehicle_id'] for e in entries})==1
-    data=dict(manufacturer='Suzuki',model='Umbau',class_code='V1',hcf='2.5')
+    data=dict(manufacturer='Suzuki',model='Umbau',class_code='V1',hcf='2.5',hcf_mode='manual',hcf_note='Umbau abgenommen')
     assert client.put(f"/api/vehicles/{vehicle['id']}",json=data).status_code==200
     old=client.get(f"/api/events/{event['id']}/entries/100").json()['entry']
     assert old['vehicle_snapshot']['model']=='SJ' and old['class_code']=='S1'
