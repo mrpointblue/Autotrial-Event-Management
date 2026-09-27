@@ -121,8 +121,7 @@ für spätere Versionen; vor Schemaänderungen gesicherte Migrationen ergänzen.
 
 ## Nächste Ausbaustufe
 
-Original-Bordkartenlayout und Punkteformat abstimmen; Snapshot-Korrekturen nur
-mit Änderungsprotokoll; vollständige Stammdatenbearbeitung; fachliche Freigabe von Rundung und SbS-Formel; Anmeldung/Rollen und Sicherungsoberfläche; signierte Releases
+Original-Bordkartenlayout und Punkteformat abstimmen;  vollständige Stammdatenbearbeitung; fachliche Freigabe von Rundung und SbS-Formel; Anmeldung/Rollen und Sicherungsoberfläche; signierte Releases
 und Images für amd64/arm64. Automatische Updates und GHCR-Publishing sind noch
 nicht eingerichtet.
 
@@ -135,3 +134,18 @@ geteilte Fahrzeuge erscheinen nur einmal. Kontakt- und Technikdetails sind
 aufklappbar. Suche, Klassenfilter, Trefferzahl und Seiten mit je 25 Datensätzen
 halten größere Bestände übersichtlich. Neue Datensätze und Zuordnungen haben
 eigene Ansichten. HCF-Anzeigen verwenden zwei Nachkommastellen und Dezimalkomma.
+
+## Nennung bearbeiten
+
+In der Liste **Genannte Fahrer → Bearbeiten** können die Klasse für die aktuelle
+Veranstaltung, das verwendete zugeordnete Fahrzeug, der bestätigte HCF, der
+Beifahrer sowie Zahlung und Abnahme geändert werden. Ein Änderungsgrund ist
+Pflicht; vorherige und neue Werte sowie UTC-Zeitpunkt werden protokolliert.
+Feste Startnummer, Fahreridentität, Stammdaten und andere Nennungen bleiben gleich.
+
+Ein reiner Klassenwechsel übernimmt vorhandene Sektionswerte und aktualisiert
+Klassenfortschritt und Ranglisten sofort. Änderungen an HCF oder Fahrzeug setzen
+bereits erfasste reguläre Wertungen auf offen; die Werte bleiben zum Abgleich
+vorhanden und müssen unter **Bordkarten erfassen** geprüft und erneut gespeichert
+werden. NiW bleibt eine eigenständige Entscheidung. Korrigierte Bordkarten neu
+ausdrucken und die vorherige Karte ersetzen.

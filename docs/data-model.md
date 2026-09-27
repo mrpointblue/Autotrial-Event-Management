@@ -11,12 +11,17 @@
 
 Startnummern werden im Grundgerüst nicht umnummeriert. Fahrzeugänderungen per API
 ändern nur Stammdaten und zukünftige Nennungen. Historische Drucke und Ranglisten
-verwenden ausschließlich den Entry-Snapshot. Es gibt bewusst keinen allgemeinen
-Entry-Patch, der Fahrzeug-Snapshots stillschweigend überschreibt.
+verwenden ausschließlich den Entry-Snapshot. Explizite Nennungskorrekturen sind über die Bearbeitungsseite und einen validierten
+API-Endpunkt möglich. Versionen verhindern das Überschreiben veralteter Formulare.
+Der Fahrer und die Startnummer können über diesen Endpunkt nicht ersetzt werden.
+Bei gleichem Fahrzeug bleibt der historische technische Snapshot bestehen; bei
+bewusstem Fahrzeugwechsel wird eine neue Kopie des zugeordneten Fahrzeugs erzeugt.
+Veranstaltungsklasse und HCF werden im Entry und seinem Snapshot konsistent geändert.
 
-Nennung und technische Abnahme werden derzeit gemeinsam angelegt oder die
-Abnahmeflags anschließend bestätigt. Ein falsches bereits genanntes Fahrzeug
-benötigt künftig einen expliziten protokollierten Korrekturprozess.
+`EntryChange` speichert UTC-Zeit, Änderungsgrund sowie Vorher-/Nachher-Werte für
+explizite Nennungskorrekturen. Die zusätzliche Tabelle wird beim Start angelegt;
+bestehende Tabellen und Nennungen werden nicht migriert oder überschrieben.
+Kein Benutzername wird erfasst, solange keine Benutzeranmeldung vorhanden ist.
 
 ## Zwei unabhängige Zustände
 

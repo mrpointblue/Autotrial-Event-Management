@@ -128,3 +128,12 @@ if(driverSearch && driver){
     info.textContent=matches.length?`${matches.length} Fahrer gefunden. Bitte auswählen.`:'Keine Fahrer gefunden. Suche ändern oder Fahrer in der Datenbank anlegen.';
   });
 }
+
+const entryEdit=document.getElementById('entry-edit-form');
+if(entryEdit){
+  entryEdit.elements.vehicle_id.addEventListener('change',()=>{
+    const option=entryEdit.elements.vehicle_id.selectedOptions[0];
+    entryEdit.elements.class_code.value=option.dataset.class;
+    entryEdit.elements.hcf.value=option.dataset.hcf;
+  });
+}

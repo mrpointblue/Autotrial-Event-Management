@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="card"><h2>Nennung bearbeiten · #{{ entry.start_number }} {{ entry.driver_name }}</h2>
+<p>Änderungen gelten nur für {{ event.name }}. Fahrer, feste Startnummer und Fahrzeug-Stammdaten bleiben erhalten.</p>
+<form id="entry-edit-form" data-api="/api/entries/{{ entry.id }}" data-method="PUT" data-redirect="/ui/events/{{ event.id }}/checkin">
+<input type="hidden" name="version" value="{{ entry.version }}">
+<div class="grid"><label>Verwendetes Fahrzeug<select name="vehicle_id" id="edit-entry-vehicle" required>{% for v in choices %}<option value="{{ v.id }}" data-class="{{ v.class_code }}" data-hcf="{{ v.hcf }}" {% if v.id==entry.vehicle_id %}selected{% endif %}>F{{ v.id }} · {{ v.label }}</option>{% endfor %}</select></label>
+<label>Klasse für diese Veranstaltung<select name="class_code" required>{% for c in classes %}<option {% if c==entry.class_code %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
+<label>Bestätigter HCF<input name="hcf" type="number" min="0.01" step="any" value="{{ (entry.hcf|hcf)|replace(',','.') }}" required></label>
+<label>Beifahrer / Trainer<input name="codriver" value="{{ entry.codriver }}"></label></div>
+<p class="hint">Ein reiner Klassenwechsel übernimmt bereits erfasste Sektionswerte. Bei Fahrzeug- oder HCF-Wechsel bleiben die Werte erhalten, müssen aber unter „Bordkarten erfassen“ geprüft und erneut gespeichert werden. Bis dahin ist die Ergebnisliste gesperrt. Eine bestehende NiW-Entscheidung bleibt erhalten.</p>
+{% for key,label in [('paid','Nenngeld bezahlt'),('technical_approved','Technische Abnahme bestätigt'),('paperwork_approved','Papierabnahme und erforderliche Unterschriften geprüft')] %}<label class="check"><input type="checkbox" name="{{ key }}" {% if entry[key] %}checked{% endif %}>{{ label }}</label>{% endfor %}
+<label>Grund der Änderung<input name="reason" maxlength="500" placeholder="z. B. freiwilliger Wechsel von S1 nach V1" required></label>
+<p>Nach einer Änderung bitte die Bordkarte neu drucken und die bisherige Karte ersetzen.</p>
+<button>Änderungen speichern</button> <a class="button secondary-button" href="/ui/events/{{ event.id }}/checkin">Abbrechen</a>
+</form></section>
+{% if changes %}<section class="card"><h2>Änderungsverlauf</h2>{% for change in changes %}<details><summary>{{ change.changed_at[:19]|replace('T',' ') }} UTC · {{ change.reason }}</summary><p>Klasse: {{ change.before.class_code }} → {{ change.after.class_code }} · HCF: {{ change.before.hcf|hcf }} → {{ change.after.hcf|hcf }} · Fahrzeug: F{{ change.before.vehicle_id }} → F{{ change.after.vehicle_id }}</p><p>Beifahrer: {{ change.before.codriver or '—' }} → {{ change.after.codriver or '—' }}</p><p>Bezahlt: {{ 'Ja' if change.before.paid else 'Nein' }} → {{ 'Ja' if change.after.paid else 'Nein' }} · Technische Abnahme: {{ 'Ja' if change.before.technical_approved else 'Nein' }} → {{ 'Ja' if change.after.technical_approved else 'Nein' }} · Papierabnahme: {{ 'Ja' if change.before.paperwork_approved else 'Nein' }} → {{ 'Ja' if change.after.paperwork_approved else 'Nein' }}</p></details>{% endfor %}</section>{% endif %}
+{% endblock %}

@@ -95,3 +95,12 @@ class SectionResult(Base):
     points: Mapped[Decimal | None] = mapped_column(Numeric(14, 4))
     driven: Mapped[bool] = mapped_column(default=True)
     __table_args__ = (UniqueConstraint('entry_id','ordinal'), CheckConstraint('ordinal > 0'), CheckConstraint('points IS NULL OR points >= 0'))
+
+class EntryChange(Base):
+    __tablename__ = 'entry_changes'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entry_id: Mapped[int] = mapped_column(ForeignKey('entries.id'),index=True)
+    changed_at: Mapped[str]
+    reason: Mapped[str]
+    before: Mapped[dict] = mapped_column(JSON)
+    after: Mapped[dict] = mapped_column(JSON)

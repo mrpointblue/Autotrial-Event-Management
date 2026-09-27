@@ -212,3 +212,27 @@ def update_checkin(entry_id:int,data:CheckinInput,db:Session=Depends(get_db)):
 def hcf_preview(data:HcfInput):
     try: return calculate_hcf(data)
     except ValueError as error: raise HTTPException(422,str(error))
+
+from backend.schemas import EntryEditInput
+from backend.models import EntryChange
+from backend.services.entries import edit_entry
+
+@app.get('/ui/entries/{entry_id}/edit')
+def entry_edit_ui(entry_id:int,request:Request,db:Session=Depends(get_db)):
+    entry=get(db,Entry,entry_id)
+    choices=[dict(id=entry.vehicle_id,label=entry.vehicle_snapshot['manufacturer']+' '+entry.vehicle_snapshot['model'],
+                  class_code=entry.class_code,hcf=format_hcf(entry.hcf).replace(',','.'))]
+    for item in linked_vehicles(entry.driver_id,db):
+        v=item['vehicle']
+        if v['id']!=entry.vehicle_id:
+            choices.append(dict(id=v['id'],label=v['manufacturer']+' '+v['model'],class_code=v['class_code'],hcf=format_hcf(v['hcf']).replace(',','.')))
+    changes=list(db.scalars(select(EntryChange).where(EntryChange.entry_id==entry.id).order_by(EntryChange.id.desc())))
+    return render(request,'entry_edit.html',event=get(db,Event,entry.event_id),entry=entry,
+                  choices=choices,classes=CLASSES,changes=changes,page='checkin')
+
+@app.put('/api/entries/{entry_id}')
+def update_entry(entry_id:int,data:EntryEditInput,db:Session=Depends(get_db)):
+    entry=get(db,Entry,entry_id)
+    edit_entry(db,entry,data)
+    commit(db)
+    return dict(id=entry.id,version=entry.version,status=entry.scoring_status)

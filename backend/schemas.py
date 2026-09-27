@@ -76,3 +76,20 @@ class CheckinInput(Input):
     paid: bool
     technical_approved: bool
     paperwork_approved: bool
+
+class EntryEditInput(Input):
+    version: int = Field(ge=1)
+    vehicle_id: int
+    class_code: str
+    hcf: Decimal = Field(gt=0,max_digits=12,decimal_places=6,allow_inf_nan=False)
+    codriver: str = ''
+    paid: bool
+    technical_approved: bool
+    paperwork_approved: bool
+    reason: str = Field(min_length=1,max_length=500)
+
+    @field_validator('class_code')
+    @classmethod
+    def valid_class(cls,value):
+        if value not in CLASSES: raise ValueError('Unbekannte Klasse nach Reglement 2026')
+        return value
