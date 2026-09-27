@@ -1,0 +1,169 @@
+from contextlib import asynccontextmanager
+from pathlib import Path
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from sqlalchemy import select, update, text
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
+from backend.database import Base, engine, get_db
+from backend.models import CLASSES, Driver, Vehicle, DriverVehicle, Event, Entry
+from backend.schemas import DriverInput, VehicleInput, EventInput, LinkInput, EntryInput, ScoreInput
+from backend.services.scoring import save_scores, class_progress, ranked_results
+
+@asynccontextmanager
+async def lifespan(app):
+    Base.metadata.create_all(engine)
+    with engine.begin() as conn:
+        version = conn.exec_driver_sql('PRAGMA user_version').scalar()
+        if version not in (0,1): raise RuntimeError('Nicht unterstützte Datenbankversion')
+        conn.exec_driver_sql('PRAGMA user_version=1')
+    yield
+
+app = FastAPI(title='Autotrial', version='0.1.0', lifespan=lifespan)
+ROOT = Path(__file__).parent
+app.mount('/static',StaticFiles(directory=ROOT/'static'),name='static')
+templates = Jinja2Templates(directory=ROOT/'templates')
+
+def get(db,model,id):
+    value = db.get(model,id)
+    if value is None: raise HTTPException(404,'Datensatz nicht gefunden')
+    return value
+
+def commit(db):
+    try: db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409,'Zuordnung oder Startnummer bereits vorhanden; bitte prüfen.')
+    except StaleDataError:
+        db.rollback()
+        raise HTTPException(409,'Datensatz inzwischen geändert. Bitte neu laden.')
+
+def render(request,name,**context):
+    return templates.TemplateResponse(request=request,name=name,context=context)
+
+@app.exception_handler(HTTPException)
+async def error_page(request,exc):
+    if request.url.path.startswith('/api/') or request.url.path=='/health':
+        return JSONResponse({'detail':exc.detail},status_code=exc.status_code)
+    return templates.TemplateResponse(request=request,name='error.html',context={'detail':exc.detail},status_code=exc.status_code)
+
+@app.get('/health')
+def health(db:Session=Depends(get_db)):
+    db.execute(text('SELECT 1'))
+    return {'status':'ok','version':'0.1.0'}
+
+@app.get('/')
+def root(): return RedirectResponse('/ui/events')
+
+@app.get('/api/drivers')
+def drivers(db:Session=Depends(get_db)): return list(db.scalars(select(Driver).order_by(Driver.start_number)))
+
+@app.post('/api/drivers',status_code=201)
+def create_driver(data:DriverInput,db:Session=Depends(get_db)):
+    row=Driver(**data.model_dump()); db.add(row); commit(db); return row
+
+@app.get('/api/vehicles')
+def vehicles(db:Session=Depends(get_db)): return list(db.scalars(select(Vehicle).order_by(Vehicle.id)))
+
+@app.post('/api/vehicles',status_code=201)
+def create_vehicle(data:VehicleInput,db:Session=Depends(get_db)):
+    row=Vehicle(**data.model_dump()); db.add(row); commit(db); return row
+
+@app.put('/api/vehicles/{vehicle_id}')
+def edit_vehicle(vehicle_id:int,data:VehicleInput,db:Session=Depends(get_db)):
+    row=get(db,Vehicle,vehicle_id)
+    for key,value in data.model_dump().items(): setattr(row,key,value)
+    commit(db); return row
+
+@app.put('/api/drivers/{driver_id}/vehicles')
+def link_vehicle(driver_id:int,data:LinkInput,db:Session=Depends(get_db)):
+    get(db,Driver,driver_id); get(db,Vehicle,data.vehicle_id)
+    if data.is_default:
+        db.execute(update(DriverVehicle).where(DriverVehicle.driver_id==driver_id).values(is_default=False))
+    row=db.get(DriverVehicle,(driver_id,data.vehicle_id))
+    if row is None:
+        row=DriverVehicle(driver_id=driver_id,vehicle_id=data.vehicle_id); db.add(row)
+    row.is_default=data.is_default; commit(db); return row
+
+@app.get('/api/drivers/{driver_id}/vehicles')
+def linked_vehicles(driver_id:int,db:Session=Depends(get_db)):
+    get(db,Driver,driver_id)
+    return [dict(vehicle=jsonable_encoder(v),is_default=link.is_default) for v,link in db.execute(select(Vehicle,DriverVehicle).join(DriverVehicle,Vehicle.id==DriverVehicle.vehicle_id).where(DriverVehicle.driver_id==driver_id))]
+
+@app.post('/api/events',status_code=201)
+def create_event(data:EventInput,db:Session=Depends(get_db)):
+    row=Event(**data.model_dump()); db.add(row); commit(db); return row
+
+@app.post('/api/events/{event_id}/entries',status_code=201)
+def create_entry(event_id:int,data:EntryInput,db:Session=Depends(get_db)):
+    get(db,Event,event_id); driver=get(db,Driver,data.driver_id)
+    vehicle_id=data.vehicle_id
+    if vehicle_id is None:
+        link=db.scalar(select(DriverVehicle).where(DriverVehicle.driver_id==driver.id,DriverVehicle.is_default==True))
+        if not link: raise HTTPException(422,'Bitte ein zugeordnetes Fahrzeug auswählen.')
+        vehicle_id=link.vehicle_id
+    if not db.get(DriverVehicle,(driver.id,vehicle_id)):
+        raise HTTPException(422,'Fahrzeug zuerst der Startnummer zuordnen.')
+    vehicle=get(db,Vehicle,vehicle_id)
+    snapshot={c.name:str(getattr(vehicle,c.name)) if c.name=='hcf' else getattr(vehicle,c.name) for c in Vehicle.__table__.columns}
+    row=Entry(event_id=event_id,driver_id=driver.id,vehicle_id=vehicle.id,start_number=driver.start_number,
+        driver_name=driver.name,vehicle_snapshot=snapshot,class_code=vehicle.class_code,hcf=vehicle.hcf,
+        **data.model_dump(exclude={'driver_id','vehicle_id'}))
+    db.add(row); commit(db); return row
+
+@app.get('/api/events/{event_id}/entries/{start_number}')
+def lookup(event_id:int,start_number:int,db:Session=Depends(get_db)):
+    row=db.scalar(select(Entry).where(Entry.event_id==event_id,Entry.start_number==start_number))
+    if not row: raise HTTPException(404,'Startnummer ist für diese Veranstaltung nicht genannt.')
+    return dict(entry=jsonable_encoder(row),sections=[dict(points=str(r.points) if r.points is not None else None,driven=r.driven) for r in row.results])
+
+@app.put('/api/entries/{entry_id}/scores')
+def record(entry_id:int,data:ScoreInput,db:Session=Depends(get_db)):
+    row=get(db,Entry,entry_id)
+    save_scores(row,get(db,Event,row.event_id),data); commit(db)
+    return dict(id=row.id,version=row.version,status=row.scoring_status)
+
+@app.get('/api/events/{event_id}/progress')
+def progress(event_id:int,db:Session=Depends(get_db)):
+    get(db,Event,event_id); return class_progress(db,event_id)
+
+@app.get('/ui/events')
+def events_ui(request:Request,db:Session=Depends(get_db)):
+    return render(request,'events.html',events=list(db.scalars(select(Event).order_by(Event.event_date.desc()))))
+
+@app.get('/ui/master-data')
+def master_ui(request:Request,db:Session=Depends(get_db)):
+    return render(request,'master.html',drivers=drivers(db),vehicles=vehicles(db),classes=CLASSES)
+
+@app.get('/ui/events/{event_id}/{page}')
+def event_ui(event_id:int,page:str,request:Request,db:Session=Depends(get_db)):
+    if page not in ('checkin','scoring','results'): raise HTTPException(404,'Seite nicht gefunden')
+    event=get(db,Event,event_id)
+    entries=list(db.scalars(select(Entry).where(Entry.event_id==event_id).order_by(Entry.start_number)))
+    return render(request,page+'.html',event=event,drivers=drivers(db),entries=entries,progress=class_progress(db,event_id),page=page)
+
+@app.get('/print/entries/{entry_id}')
+def card(entry_id:int,request:Request,db:Session=Depends(get_db)):
+    entry=get(db,Entry,entry_id)
+    if not entry.technical_approved or not entry.paperwork_approved:
+        raise HTTPException(409,'Papierabnahme und technische Abnahme müssen für den Bordkartendruck bestätigt sein.')
+    return render(request,'card.html',entry=entry,event=get(db,Event,entry.event_id))
+
+@app.get('/print/events/{event_id}/{class_code}')
+def results(event_id:int,class_code:str,request:Request,db:Session=Depends(get_db)):
+    event=get(db,Event,event_id)
+    return render(request,'print_results.html',event=event,class_code=class_code,rows=ranked_results(db,event_id,class_code))
+
+from backend.schemas import CheckinInput
+
+@app.put('/api/entries/{entry_id}/checkin')
+def update_checkin(entry_id:int,data:CheckinInput,db:Session=Depends(get_db)):
+    row=get(db,Entry,entry_id)
+    if row.version != data.version: raise HTTPException(409,'Nennung inzwischen geändert. Bitte neu laden.')
+    for key,value in data.model_dump(exclude={'version'}).items(): setattr(row,key,value)
+    row.version += 1
+    commit(db); return row

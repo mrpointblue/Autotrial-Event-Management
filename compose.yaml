@@ -1,0 +1,19 @@
+name: autotrial
+services:
+  app:
+    build: .
+    image: autotrial:0.1.0
+    ports:
+      - "${AUTOTRIAL_BIND:-127.0.0.1}:${AUTOTRIAL_PORT:-8020}:8000"
+    environment:
+      DATA_DIR: /app/data
+      TZ: Europe/Berlin
+    volumes:
+      - autotrial-data:/app/data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  autotrial-data:

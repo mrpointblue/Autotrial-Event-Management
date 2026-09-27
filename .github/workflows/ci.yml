@@ -1,0 +1,17 @@
+name: Test and Docker smoke test
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+      - run: docker compose config --quiet
+      - run: docker compose up -d --build --wait
+      - run: curl --fail http://127.0.0.1:8020/health
+      - run: docker compose down
+        if: always()
