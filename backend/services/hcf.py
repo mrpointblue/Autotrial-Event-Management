@@ -1,5 +1,18 @@
 """HCF proposal according to ADAC SH regulations, 09 March 2026, section 3."""
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
+
+def round_hcf(value):
+    result = Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    if result <= 0:
+        raise ValueError('Der gerundete HCF muss mindestens 0,01 betragen.')
+    if result >= 1000000:
+        raise ValueError('Der gerundete HCF ist zu groß. Bitte Wert prüfen.')
+    return result
+
+
+def format_hcf(value):
+    return format(Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP), '.2f').replace('.', ',')
+
 
 REFERENCES = {'offroad': (300, 139, 193), 'atv': (185, 101, 115), 'quad': (166, 106, 110)}
 
@@ -22,7 +35,7 @@ def calculate_hcf(data):
         raise ValueError('Die Maße ergeben keinen positiven HCF. Bitte Maße und Fahrzeugart prüfen.')
     if result >= 1000000:
         raise ValueError('Der HCF ist zu groß. Bitte Maße prüfen.')
-    return dict(base=str(base), correction_percent=percent, hcf=str(result), references=[length,width,wheelbase],
+    return dict(base=str(base), correction_percent=percent, hcf=str(round_hcf(result)), references=[length,width,wheelbase],
                 corrections=[dict(label=label,percent=value) for label,value in corrections],
                 formula=f'(({data.length_cm} − {length}) / 100) + (({data.width_cm} − {width}) / 100 × 2,6) + (({data.wheelbase_cm} − {wheelbase}) / 100 × 2,6) + 1')
 
@@ -35,5 +48,6 @@ def vehicle_values(data):
     else:
         if data.hcf is None or not data.hcf_note.strip():
             raise ValueError('Manueller HCF benötigt einen positiven Wert und eine Begründung der technischen Abnahme.')
-        values['hcf_note'] = 'Manuell bestätigt: ' + data.hcf_note
+        values['hcf'] = round_hcf(data.hcf)
+        values['hcf_note'] = 'Manuell bestätigt (HCF auf 2 Nachkommastellen gerundet): ' + data.hcf_note
     return values

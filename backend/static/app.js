@@ -1,4 +1,5 @@
 'use strict';
+const displayHcf = value => Number(value).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
 const message = document.getElementById('message');
 function show(text, error=false) { message.hidden=false; message.className=error?'error':'success'; message.textContent=text; }
 async function api(url, body, method='POST') {
@@ -18,17 +19,17 @@ async function submit(form,action) {
   try{await action();}catch(error){show(error.message,true);}finally{button.disabled=false;}
 }
 document.querySelectorAll('form[data-api]').forEach(form=>form.addEventListener('submit',event=>{
-  event.preventDefault(); submit(form,async()=>{await api(form.dataset.api,values(form),form.dataset.method||'POST');location.reload();});
+  event.preventDefault(); submit(form,async()=>{await api(form.dataset.api,values(form),form.dataset.method||'POST');location.assign(form.dataset.redirect||location.href);});
 }));
 const link=document.getElementById('link-form');
-if(link) link.addEventListener('submit',event=>{event.preventDefault();submit(link,async()=>{const data=values(link);const id=data.driver_id;delete data.driver_id;await api(`/api/drivers/${id}/vehicles`,data,'PUT');show('Fahrzeugzuordnung gespeichert.');});});
+if(link) link.addEventListener('submit',event=>{event.preventDefault();submit(link,async()=>{const data=values(link);const id=data.driver_id;delete data.driver_id;await api(`/api/drivers/${id}/vehicles`,data,'PUT');location.assign('/ui/master-data?tab=drivers');});});
 const driver=document.getElementById('entry-driver');
 if(driver) driver.addEventListener('change',async()=>{
   const select=document.getElementById('entry-vehicle');select.replaceChildren(new Option('Fahrzeug auswählen',''));
   if(!driver.value)return;
   const chosen=driver.value;
   try{const rows=await api(`/api/drivers/${chosen}/vehicles`,undefined,'GET');if(driver.value!==chosen)return;
-    rows.forEach(({vehicle:v,is_default})=>select.add(new Option(`F${v.id} · ${v.manufacturer} ${v.model} · ${v.class_code} · HCF ${v.hcf}${is_default?' (Standard)':''}`,v.id,is_default,is_default)));
+    rows.forEach(({vehicle:v,is_default})=>select.add(new Option(`F${v.id} · ${v.manufacturer} ${v.model} · ${v.class_code} · HCF ${displayHcf(v.hcf)}${is_default?' (Standard)':''}`,v.id,is_default,is_default)));
     if(!rows.length)show('Bitte zuerst unter Stammdaten ein Fahrzeug zuordnen.',true);
   }catch(error){show(error.message,true);}
 });
@@ -57,7 +58,7 @@ if(lookup)lookup.addEventListener('submit',event=>{event.preventDefault();submit
   const data=await api(`/api/events/${lookup.dataset.event}/entries/${lookup.elements.start_number.value}`,undefined,'GET');
   const e=data.entry;score.elements.entry_id.value=e.id;score.elements.version.value=e.version;score.elements.niw_reason.value=e.niw_reason;
   score.elements.card_status.value=data.sections.length?e.card_status:'received';
-  document.getElementById('entry-heading').textContent=`#${e.start_number} · ${e.driver_name} · ${e.class_code} · HCF ${e.hcf}`;
+  document.getElementById('entry-heading').textContent=`#${e.start_number} · ${e.driver_name} · ${e.class_code} · HCF ${displayHcf(e.hcf)}`;
   const sections=document.getElementById('sections');sections.replaceChildren();
   for(let i=0;i<Number(lookup.dataset.count);i++){
     const box=document.createElement('div'),label=document.createElement('label'),input=document.createElement('input');
@@ -101,7 +102,7 @@ if(vehicleForm){
       try{
         const result=await api('/api/hcf/preview',data);
         if(current!==revision)return;
-        output.textContent=`Berechneter HCF: ${result.hcf.replace('.',',')} · Basis: ${result.base.replace('.',',')}`;
+        output.textContent=`Berechneter HCF: ${result.hcf.replace('.',',')} · Basis: ${displayHcf(result.base)}`;
         document.getElementById('hcf-formula').textContent=result.formula;
         document.getElementById('hcf-corrections').textContent=(result.corrections.map(c=>`${c.label}: ${c.percent>0?'+':''}${c.percent} %`).join(' · ')||'Keine Korrekturen')+` → insgesamt ${result.correction_percent} %`;
       }catch(error){if(current===revision)output.textContent=error.message;}
@@ -109,4 +110,21 @@ if(vehicleForm){
   }
   for(const key of ['kind','length_cm','width_cm','wheelbase_cm','front_lock','rear_lock','traction_control','closed_body','hcf_mode'])vehicleForm.elements[key].addEventListener('input',updateHcf);
   updateHcf();
+}
+
+// Search all parts of a name independently, so first/last-name order does not matter.
+const driverSearch=document.getElementById('entry-driver-search');
+if(driverSearch && driver){
+  const choices=Array.from(driver.options).filter(option=>option.value).map(option=>({value:option.value,text:option.text}));
+  const info=document.getElementById('driver-search-info');
+  driverSearch.addEventListener('input',()=>{
+    const terms=driverSearch.value.toLocaleLowerCase('de-DE').replace(/#/g,'').trim().split(/\s+/).filter(Boolean);
+    const matches=choices.filter(choice=>terms.every(term=>choice.text.toLocaleLowerCase('de-DE').includes(term)));
+    const selected=driver.value;
+    driver.replaceChildren(new Option(matches.length?'Bitte Fahrer auswählen':'Keine passenden Fahrer',''));
+    matches.forEach(choice=>driver.add(new Option(choice.text,choice.value)));
+    if(matches.some(choice=>choice.value===selected))driver.value=selected;
+    else if(selected){driver.value='';driver.dispatchEvent(new Event('change'));}
+    info.textContent=matches.length?`${matches.length} Fahrer gefunden. Bitte auswählen.`:'Keine Fahrer gefunden. Suche ändern oder Fahrer in der Datenbank anlegen.';
+  });
 }

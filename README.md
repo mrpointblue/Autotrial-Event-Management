@@ -31,7 +31,8 @@ nach dem Image-Build kein Internet und keine externen Schriftarten/CDNs.
    Klasse und bestätigtem HCF anlegen.
 3. Bekannte Fahrzeuge Fahrern zuordnen; optional eines als Standard setzen.
    Fahrzeuge können beliebig vielen Startnummern zugeordnet sein.
-4. Nennung: tatsächlich verwendetes Fahrzeug auswählen. Name, Startnummer,
+4. Nennung: Fahrer über Startnummer, Vor- oder Nachname suchen (auch kombiniert,
+   unabhängig von der Namensreihenfolge) und tatsächlich verwendetes Fahrzeug auswählen. Name, Startnummer,
    vollständige Fahrzeugdaten, Klasse und HCF werden als Snapshot gespeichert.
    Ein Fahrer kann pro Veranstaltung nur einmal genannt werden.
 5. Papier-/Unterschriftenprüfung und technische Abnahme bestätigen. Bezahlstatus
@@ -57,7 +58,10 @@ Einsatz die Eingabe um HCF-relevante und feste Punkte ergänzt werden.
 Der HCF wird für Geländewagen, ATV und Quad automatisch aus den Maßen in ganzen
 cm und den fahrzeugartspezifischen Korrekturen vorgeschlagen. Basisformel und
 Prozentkorrekturen erscheinen direkt beim Anlegen. Korrekturen werden addiert,
-anschließend auf die Basis angewandt. Es erfolgt keine zusätzliche Rundung.
+anschließend auf die Basis angewandt. Der endgültige HCF wird kaufmännisch (ROUND_HALF_UP) auf zwei Nachkommastellen
+gerundet. Zwischenwerte bleiben für die Berechnung ungerundet. Auch manuelle
+Werte und neue Nennungs-Snapshots verwenden diese Rundung. Historische
+Nennungs-Snapshots werden nicht nachträglich verändert.
 Beim Speichern berechnet das Backend den Wert erneut. Eine manuelle Bestätigung
 oder Korrektur benötigt einen positiven HCF und eine Begründung der technischen
 Abnahme. Für Side-by-Side bleibt die Bestätigung manuell, da die vorliegende
@@ -121,3 +125,13 @@ Original-Bordkartenlayout und Punkteformat abstimmen; Snapshot-Korrekturen nur
 mit Änderungsprotokoll; vollständige Stammdatenbearbeitung; fachliche Freigabe von Rundung und SbS-Formel; Anmeldung/Rollen und Sicherungsoberfläche; signierte Releases
 und Images für amd64/arm64. Automatische Updates und GHCR-Publishing sind noch
 nicht eingerichtet.
+
+## Datenbankübersicht
+
+Unter **Datenbank** stehen getrennte Fahrer- und Fahrzeugübersichten bereit.
+Die Fahrerliste zeigt feste Startnummer, Verein, Standardfahrzeug, Klasse und HCF.
+Die Fahrzeugliste zeigt Kennzeichen, Klasse, HCF und zugeordnete Fahrer;
+geteilte Fahrzeuge erscheinen nur einmal. Kontakt- und Technikdetails sind
+aufklappbar. Suche, Klassenfilter, Trefferzahl und Seiten mit je 25 Datensätzen
+halten größere Bestände übersichtlich. Neue Datensätze und Zuordnungen haben
+eigene Ansichten. HCF-Anzeigen verwenden zwei Nachkommastellen und Dezimalkomma.

@@ -29,8 +29,8 @@ Basis = ((Länge − L)/100) + ((Breite − B)/100 × 2,6)
 | ATV | 185 | 101 | 115 | je Achssperre −10 % |
 | Quad | 166 | 106 | 110 | keine Zusatzkorrektur genannt |
 
-Maße in ganzen cm. Keine eigenmächtige automatische SbS-Zuordnung oder
-Rundungsfestlegung. Der fragliche Text „ausgenommen Klasse D?“ steht im Original,
+Maße in ganzen cm. Keine automatische SbS-Zuordnung. Die Rundung wurde vom Nutzer festgelegt:
+kaufmännisch auf zwei Nachkommastellen nach Anwendung aller Korrekturen. Der fragliche Text „ausgenommen Klasse D?“ steht im Original,
 obwohl D in der Klassentabelle nicht definiert ist. Fachlich klären.
 
 Q-Minis Fun und Q-Minis stehen im Nennformular, fehlen aber im gelieferten
@@ -44,9 +44,11 @@ Pokal-/Helferwertung oder automatische Entscheidung über technische Zulassung.
 Software erfindet sie nicht aus den Summen. Drucklayout ist ein erster Entwurf,
 nicht das amtliche Nennformular und noch keine bestätigte vorhandene Bordkarte.
 
-Die automatische Berechnung verwendet Decimal ohne zusätzliche Rundung. Die
+Die automatische Berechnung verwendet Decimal und rundet den endgültigen HCF
+kaufmännisch auf zwei Nachkommastellen (Nutzervorgabe). Zwischenwerte bleiben
+für die Berechnung ungerundet. Die
 Summe der Prozentkorrekturen wird einmal auf die Basis angewandt. Beispiel:
-343/146/203 cm ergibt Basis 1,872; eine Sperre ergibt HCF 1,6848. Automatische
+343/146/203 cm ergibt Basis 1,872; eine Sperre ergibt 1,6848 und damit den gespeicherten HCF 1,68. Automatische
 API-Speicherung benötigt alle Maße. `hcf_mode=manual` benötigt HCF und Begründung.
 Der verwendete Rechenweg bzw. die Begründung wird im HCF-Vermerk gespeichert
 und mit dem Fahrzeug in neue Nennungen übernommen. Alte Snapshots bleiben gleich.

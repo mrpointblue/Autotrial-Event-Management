@@ -35,7 +35,9 @@ einem Punktwert. 900 Punkte allein beweisen keine Nichtbefahrung. Unter 70 % wir
 der Abschluss ohne explizite NiW-Begründung abgewiesen.
 
 Werte verwenden Decimal/Numeric (4 Nachkommastellen für Endwerte, 6 für HCF).
-Das ist die Speicherpräzision, keine vom Reglement vorgeschriebene Rundung.
+Das ist die Speicherpräzision. HCF-Werte werden vor dem Speichern und für neue
+Nennungen kaufmännisch auf zwei Nachkommastellen gerundet (Nutzervorgabe).
+Historische Snapshots bleiben unverändert.
 Ränge werden nach exakten gespeicherten Summen bestimmt: 1, 1, 3.
 
 Entry-Versionen verhindern das stille Überschreiben veralteter Eingabemasken.

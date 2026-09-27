@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -12,7 +12,7 @@ from sqlalchemy.orm.exc import StaleDataError
 from backend.database import Base, engine, get_db
 from backend.models import CLASSES, Driver, Vehicle, DriverVehicle, Event, Entry
 from backend.schemas import DriverInput, VehicleInput, EventInput, LinkInput, EntryInput, ScoreInput
-from backend.services.hcf import calculate_hcf, vehicle_values
+from backend.services.hcf import calculate_hcf, vehicle_values, round_hcf, format_hcf
 from backend.schemas import HcfInput
 from backend.services.scoring import save_scores, class_progress, ranked_results
 
@@ -29,6 +29,7 @@ app = FastAPI(title='Autotrial', version='0.1.0', lifespan=lifespan)
 ROOT = Path(__file__).parent
 app.mount('/static',StaticFiles(directory=ROOT/'static'),name='static')
 templates = Jinja2Templates(directory=ROOT/'templates')
+templates.env.filters['hcf'] = format_hcf
 
 def get(db,model,id):
     value = db.get(model,id)
@@ -115,9 +116,11 @@ def create_entry(event_id:int,data:EntryInput,db:Session=Depends(get_db)):
     if not db.get(DriverVehicle,(driver.id,vehicle_id)):
         raise HTTPException(422,'Fahrzeug zuerst der Startnummer zuordnen.')
     vehicle=get(db,Vehicle,vehicle_id)
-    snapshot={c.name:str(getattr(vehicle,c.name)) if c.name=='hcf' else getattr(vehicle,c.name) for c in Vehicle.__table__.columns}
+    try: entry_hcf = round_hcf(vehicle.hcf)
+    except ValueError as error: raise HTTPException(422,str(error))
+    snapshot={c.name:str(entry_hcf) if c.name=='hcf' else getattr(vehicle,c.name) for c in Vehicle.__table__.columns}
     row=Entry(event_id=event_id,driver_id=driver.id,vehicle_id=vehicle.id,start_number=driver.start_number,
-        driver_name=driver.name,vehicle_snapshot=snapshot,class_code=vehicle.class_code,hcf=vehicle.hcf,
+        driver_name=driver.name,vehicle_snapshot=snapshot,class_code=vehicle.class_code,hcf=entry_hcf,
         **data.model_dump(exclude={'driver_id','vehicle_id'}))
     db.add(row); commit(db); return row
 
@@ -142,8 +145,38 @@ def events_ui(request:Request,db:Session=Depends(get_db)):
     return render(request,'events.html',events=list(db.scalars(select(Event).order_by(Event.event_date.desc()))))
 
 @app.get('/ui/master-data')
-def master_ui(request:Request,db:Session=Depends(get_db)):
-    return render(request,'master.html',drivers=drivers(db),vehicles=vehicles(db),classes=CLASSES)
+def master_ui(request:Request,tab:str='drivers',q:str='',class_code:str='',
+              page_number:int=Query(default=1,ge=1),db:Session=Depends(get_db)):
+    if tab not in ('drivers','vehicles','new-driver','new-vehicle','assign'):
+        raise HTTPException(404,'Ansicht nicht gefunden')
+    all_drivers, all_vehicles = drivers(db), vehicles(db)
+    driver_map = {d.id:d for d in all_drivers}
+    vehicle_map = {v.id:v for v in all_vehicles}
+    by_driver = {d.id:[] for d in all_drivers}
+    by_vehicle = {v.id:[] for v in all_vehicles}
+    for link in db.scalars(select(DriverVehicle).order_by(DriverVehicle.driver_id,DriverVehicle.vehicle_id)):
+        by_driver[link.driver_id].append(dict(vehicle=vehicle_map[link.vehicle_id],is_default=link.is_default))
+        by_vehicle[link.vehicle_id].append(dict(driver=driver_map[link.driver_id],is_default=link.is_default))
+    for links in by_driver.values(): links.sort(key=lambda x:not x['is_default'])
+    for links in by_vehicle.values(): links.sort(key=lambda x:x['driver'].start_number)
+    query = q.strip().casefold()
+    if tab == 'vehicles':
+        rows = [v for v in all_vehicles if (not class_code or v.class_code==class_code) and
+                query in ' '.join([str(v.id),'F'+str(v.id),v.manufacturer,v.model,v.plate,v.class_code]+
+                [str(x['driver'].start_number)+' '+x['driver'].name for x in by_vehicle[v.id]]).casefold()]
+    else:
+        rows = [d for d in all_drivers if (not class_code or any(x['vehicle'].class_code==class_code for x in by_driver[d.id])) and
+                query in ' '.join([str(d.start_number),d.name,d.club,d.adac_number]+
+                [x['vehicle'].manufacturer+' '+x['vehicle'].model+' '+x['vehicle'].plate for x in by_driver[d.id]]).casefold()]
+    count = len(rows)
+    pages = max(1,(count+24)//25)
+    page_number = min(page_number,pages)
+    rows = rows[(page_number-1)*25:page_number*25]
+    return render(request,'master.html',drivers=all_drivers,vehicles=all_vehicles,classes=CLASSES,
+                  tab=tab,q=q,class_code=class_code,rows=rows,count=count,pages=pages,page_number=page_number,
+                  by_driver=by_driver,by_vehicle=by_vehicle,
+                  previous_url=str(request.url.include_query_params(page_number=page_number-1)),
+                  next_url=str(request.url.include_query_params(page_number=page_number+1)))
 
 @app.get('/ui/events/{event_id}/{page}')
 def event_ui(event_id:int,page:str,request:Request,db:Session=Depends(get_db)):
