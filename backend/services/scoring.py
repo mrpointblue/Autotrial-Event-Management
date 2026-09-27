@@ -2,6 +2,7 @@ from decimal import Decimal
 from fastapi import HTTPException
 from sqlalchemy import select
 from backend.models import Entry, SectionResult
+from backend.services.table_b import table_b_points
 
 def save_scores(entry, event, data):
     if entry.version != data.version:
@@ -45,7 +46,14 @@ def ranked_results(db,event_id,class_code):
     result, previous, rank = [], None, 0
     for index,(entry,total) in enumerate(rows,1):
         if total != previous: rank = index
-        result.append(dict(rank=rank,entry=entry,total=total))
+        result.append(dict(rank=rank,entry=entry,total=total,points_b=table_b_points(rank,len(entries)),participant_count=len(entries)))
         previous = total
-    result.extend(dict(rank='NiW',entry=e,total=None) for e in sorted(entries,key=lambda e:e.start_number) if e.scoring_status=='niw')
+    result.extend(dict(rank='NiW',entry=e,total=None,points_b=None,participant_count=len(entries)) for e in sorted(entries,key=lambda e:e.start_number) if e.scoring_status=='niw')
     return result
+
+
+def result_groups(db,event_id):
+    groups=class_progress(db,event_id)
+    for group in groups:
+        group['rows']=ranked_results(db,event_id,group['class_code']) if group['ready'] else []
+    return groups

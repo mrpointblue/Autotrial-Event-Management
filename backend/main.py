@@ -14,7 +14,7 @@ from backend.models import CLASSES, Driver, Vehicle, DriverVehicle, Event, Entry
 from backend.schemas import DriverInput, VehicleInput, EventInput, LinkInput, EntryInput, ScoreInput
 from backend.services.hcf import calculate_hcf, vehicle_values, round_hcf, format_hcf
 from backend.schemas import HcfInput
-from backend.services.scoring import save_scores, class_progress, ranked_results
+from backend.services.scoring import save_scores, class_progress, ranked_results, result_groups
 
 @asynccontextmanager
 async def lifespan(app):
@@ -180,10 +180,13 @@ def master_ui(request:Request,tab:str='drivers',q:str='',class_code:str='',
 
 @app.get('/ui/events/{event_id}/{page}')
 def event_ui(event_id:int,page:str,request:Request,db:Session=Depends(get_db)):
-    if page not in ('checkin','scoring','results'): raise HTTPException(404,'Seite nicht gefunden')
+    if page not in ('checkin','scoring','results','result-tables'): raise HTTPException(404,'Seite nicht gefunden')
     event=get(db,Event,event_id)
+    if page=='result-tables':
+        return render(request,'result_tables.html',event=event,result_groups=result_groups(db,event_id))
     entries=list(db.scalars(select(Entry).where(Entry.event_id==event_id).order_by(Entry.start_number)))
-    return render(request,page+'.html',event=event,drivers=drivers(db),entries=entries,progress=class_progress(db,event_id),page=page)
+    return render(request,page+'.html',event=event,drivers=drivers(db),entries=entries,progress=class_progress(db,event_id),page=page,
+                  result_groups=result_groups(db,event_id) if page=='results' else [])
 
 @app.get('/print/entries/{entry_id}')
 def card(entry_id:int,request:Request,db:Session=Depends(get_db)):

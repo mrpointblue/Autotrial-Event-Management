@@ -1,0 +1,9 @@
+{% for group in result_groups %}
+<section class="card" id="results-{{ group.class_code }}"><div class="database-table-heading"><h2>Klasse {{ group.class_code }}</h2><span>N = {{ group.total }} Teilnehmer · {{ group.niw }} NiW</span></div>
+{% if group.ready %}
+<div class="table-wrap"><table><thead><tr><th>Platz</th><th>Startnr.</th><th>Fahrer</th><th>Fahrzeug</th><th>HCF</th><th>Gesamtfehler / NiW</th><th>Wertungspunkte B</th></tr></thead><tbody>
+{% for row in group.rows %}<tr><td>{{ row.rank }}</td><td>#{{ row.entry.start_number }}</td><td>{{ row.entry.driver_name }}</td><td>{{ row.entry.vehicle_snapshot.manufacturer }} {{ row.entry.vehicle_snapshot.model }}</td><td>{{ row.entry.hcf|hcf }}</td><td>{{ row.total if row.total is not none else row.entry.niw_reason }}</td><td class="numeric"><strong>{{ row.points_b if row.points_b is not none else '—' }}</strong></td></tr>{% endfor %}
+</tbody></table></div><a class="button" target="_blank" href="/print/events/{{ event.id }}/{{ group.class_code }}">Ergebnisliste drucken</a>
+{% else %}<p>{{ group.complete }}/{{ group.total }} Nennungen bearbeitet. Rangfolge und Wertungspunkte werden angezeigt, sobald die Klasse vollständig erfasst ist.</p><p>Offen: {% for driver in group.missing %}#{{ driver.start_number }} {{ driver.name }}{{ ', ' if not loop.last else '' }}{% endfor %}</p><a href="/ui/events/{{ event.id }}/scoring">Bordkarten erfassen</a>{% endif %}
+</section>
+{% else %}<section class="card"><p>Noch keine Nennungen für diese Veranstaltung.</p></section>{% endfor %}

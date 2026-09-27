@@ -1,1 +1,4 @@
-{% extends 'base.html' %}{% block content %}<section class="card">{% include 'progress.html' %}</section>{% endblock %}
+{% extends 'base.html' %}{% block content %}
+<section class="card"><h2>Ergebnisse · Wertungstabelle B</h2><p>Die kleinste Gesamtfehlerzahl bestimmt den Platz. Aus Platz und Teilnehmerzahl der jeweiligen Klasse werden die Wertungspunkte berechnet.</p><p><strong>Punkte = (80 − (Platz × 30) / (N + 1)) × 10</strong> · Auf ganze Punkte gerundet.</p><p>NiW zählt zur Teilnehmerzahl N, erhält aber keine Wertungspunkte. Gleiche Plätze erhalten dieselben Wertungspunkte.</p><small id="result-refresh-state" role="status">Ergebnisse werden automatisch aktualisiert.</small></section>
+<div id="result-tables" data-event="{{ event.id }}">{% include 'result_tables.html' %}</div>
+{% endblock %}

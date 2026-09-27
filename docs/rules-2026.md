@@ -52,3 +52,25 @@ Summe der Prozentkorrekturen wird einmal auf die Basis angewandt. Beispiel:
 API-Speicherung benötigt alle Maße. `hcf_mode=manual` benötigt HCF und Begründung.
 Der verwendete Rechenweg bzw. die Begründung wird im HCF-Vermerk gespeichert
 und mit dem Fahrzeug in neue Nennungen übernommen. Alte Snapshots bleiben gleich.
+
+## Wertungstabelle B
+
+Zusätzliche Grundlage: `ADAC Motorsport Schleswig-Holstein | Wertungstabelle B.pdf`,
+vom Nutzer bereitgestellter Web-Ausdruck vom 27.09.2026, zwei Seiten.
+Quelle: https://motorsport.adac-sh.de/meisterschaften/tabelle-c/wertungstabelle-b
+
+Formel: Punkte = (80 − (Platz × 30) / (N + 1)) × 10.
+Die Software verwendet die Formel auch für größere Teilnehmerfelder als die im
+Ausdruck sichtbaren Spalten. Die Tabelle zeigt ganze Punkte; kaufmännische
+Rundung entspricht den Referenzwerten (z. B. N=7, Platz 5: 612,5 → 613).
+
+N ist die Anzahl der Nennungen in der jeweiligen Klasse, einschließlich NiW
+(vom Nutzer ausdrücklich bestätigt). NiW erhält keine Wertungspunkte und wird
+mit einem Strich angezeigt. Gleichstände übernehmen denselben Platz und dieselben
+Wertungspunkte; nachfolgende Plätze bleiben gemäß Trial-Reglement frei.
+
+Beispiel mit vier Teilnehmern, davon einer NiW: Plätze 1, 1, 3, NiW ergeben
+740, 740, 620, keine Punkte. Eine Klasse wird erst nach vollständiger Bearbeitung
+angezeigt und zum Ergebnisdruck freigegeben. Klassenwechsel verändern N und
+damit die Punkte in den betroffenen Klassen; die Berechnung erfolgt immer aus
+dem aktuellen Nennungs-/Wertungsstand, ohne gespeicherte Punktkopien.

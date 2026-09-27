@@ -149,3 +149,12 @@ bereits erfasste reguläre Wertungen auf offen; die Werte bleiben zum Abgleich
 vorhanden und müssen unter **Bordkarten erfassen** geprüft und erneut gespeichert
 werden. NiW bleibt eine eigenständige Entscheidung. Korrigierte Bordkarten neu
 ausdrucken und die vorherige Karte ersetzen.
+
+## Wertungspunkte nach Tabelle B
+
+Ergebnisse und Ergebnisdruck zeigen neben den Gesamtfehlern die **Wertungspunkte B**:
+`(80 − (Platz × 30) / (Teilnehmerzahl + 1)) × 10`, kaufmännisch auf ganze Punkte
+gerundet. Die Teilnehmerzahl wird je Klasse einschließlich NiW ermittelt.
+NiW erhält keine Punkte (Anzeige „—“). Gleiche Plätze erhalten dieselben Punkte.
+Die Ergebnisseite zeigt vollständige Klassen als Tabellen und offene Klassen
+mit ihren fehlenden Fahrern. Sie aktualisiert sich alle fünf Sekunden.

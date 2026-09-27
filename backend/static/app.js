@@ -137,3 +137,22 @@ if(entryEdit){
     entryEdit.elements.hcf.value=option.dataset.hcf;
   });
 }
+
+const resultTables=document.getElementById('result-tables');
+if(resultTables){
+  let refreshing=false;
+  setInterval(async()=>{
+    if(refreshing)return;
+    refreshing=true;
+    const status=document.getElementById('result-refresh-state');
+    try{
+      const response=await fetch(`/ui/events/${resultTables.dataset.event}/result-tables`);
+      if(!response.ok)throw new Error('Ergebnisse konnten nicht geladen werden.');
+      // Same-origin, server-rendered fragment; Jinja escapes all participant data.
+      const documentFragment=new DOMParser().parseFromString(await response.text(),'text/html');
+      resultTables.replaceChildren(...documentFragment.body.childNodes);
+      status.textContent='Aktualisiert: '+new Date().toLocaleTimeString('de-DE');
+    }catch(error){status.textContent='Aktualisierung fehlgeschlagen – Ergebnisse können veraltet sein.';}
+    finally{refreshing=false;}
+  },5000);
+}
