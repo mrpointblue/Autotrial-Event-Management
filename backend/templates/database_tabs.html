@@ -1,0 +1,3 @@
+<nav class="database-tabs" aria-label="Datenbankansichten">
+{% for key,label in [('drivers','Fahrerübersicht'),('vehicles','Fahrzeugübersicht'),('new-driver','Fahrer anlegen'),('new-vehicle','Fahrzeug anlegen'),('assign','Fahrzeug zuordnen'),('classes','Klassen')] %}<a href="/ui/master-data?tab={{ key }}" {% if tab==key %}class="active" aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+</nav>

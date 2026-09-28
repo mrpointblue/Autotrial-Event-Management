@@ -191,6 +191,11 @@ def events_ui(request:Request,db:Session=Depends(get_db)):
 @app.get('/ui/master-data')
 def master_ui(request:Request,tab:str='drivers',q:str='',class_code:str='',
               page_number:int=Query(default=1,ge=1),db:Session=Depends(get_db)):
+    if tab == 'classes':
+        saved=request.cookies.get('active_event','')
+        active=db.get(Event,int(saved)) if saved.isdigit() and len(saved)<=18 else None
+        return render(request,'classes.html',tab='classes',event=active,
+                      event_classes=list(db.scalars(select(EventClass).where(EventClass.event_id==active.id).order_by(EventClass.code))) if active else [])
     if tab not in ('drivers','vehicles','new-driver','new-vehicle','assign'):
         raise HTTPException(404,'Ansicht nicht gefunden')
     all_drivers, all_vehicles = drivers(db), vehicles(db)

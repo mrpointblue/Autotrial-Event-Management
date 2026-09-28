@@ -1,9 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="database-heading"><div><h2>Fahrer- und Fahrzeugdatenbank</h2><p>Alle Stammdaten und Zuordnungen auf einen Blick.</p></div><div class="database-counts"><span><strong>{{ drivers|length }}</strong> Fahrer</span><span><strong>{{ vehicles|length }}</strong> Fahrzeug{{ 'e' if vehicles|length!=1 else '' }}</span></div></div>
-<nav class="database-tabs" aria-label="Datenbankansichten">
-{% for key,label in [('drivers','Fahrerübersicht'),('vehicles','Fahrzeugübersicht'),('new-driver','Fahrer anlegen'),('new-vehicle','Fahrzeug anlegen'),('assign','Fahrzeug zuordnen')] %}<a href="/ui/master-data?tab={{ key }}" {% if tab==key %}class="active" aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
-</nav>
+<div class="database-heading"><div><h2>Datenbank</h2><p>Alle Stammdaten und Zuordnungen auf einen Blick.</p></div><div class="database-counts"><span><strong>{{ drivers|length }}</strong> Fahrer</span><span><strong>{{ vehicles|length }}</strong> Fahrzeug{{ 'e' if vehicles|length!=1 else '' }}</span></div></div>
+{% include 'database_tabs.html' %}
 {% if tab in ('drivers','vehicles') %}
 <section class="card">
 <form method="get" class="database-search"><input type="hidden" name="tab" value="{{ tab }}"><label>Suche<input name="q" value="{{ q }}" placeholder="{{ 'Startnummer, Name, Verein oder Fahrzeug' if tab=='drivers' else 'Hersteller, Typ, Kennzeichen oder Fahrer' }}"></label><label>Klasse<select name="class_code"><option value="">Alle Klassen</option>{% for c in classes %}<option {% if class_code==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label><button>Suchen</button><a href="/ui/master-data?tab={{ tab }}">Zurücksetzen</a></form>
