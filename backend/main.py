@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Request, Query
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, update, text
@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
 from backend.database import Base, engine, get_db
-from backend.models import CLASSES, Driver, Vehicle, DriverVehicle, Event, Entry
+from backend.models import CLASSES, Driver, Vehicle, DriverVehicle, Event, Entry, EventClass, Team, TeamMember
 from backend.schemas import DriverInput, VehicleInput, EventInput, LinkInput, EntryInput, ScoreInput
 from backend.services.hcf import calculate_hcf, vehicle_values, round_hcf, format_hcf
 from backend.schemas import HcfInput
@@ -21,8 +21,22 @@ async def lifespan(app):
     Base.metadata.create_all(engine)
     with engine.begin() as conn:
         version = conn.exec_driver_sql('PRAGMA user_version').scalar()
-        if version not in (0,1): raise RuntimeError('Nicht unterstützte Datenbankversion')
-        conn.exec_driver_sql('PRAGMA user_version=1')
+        if version not in (0,1,2,3,4): raise RuntimeError('Nicht unterstützte Datenbankversion')
+        columns={r[1] for r in conn.exec_driver_sql('PRAGMA table_info(section_results)')}
+        for column in ('error1','error2'):
+            if column not in columns:
+                conn.exec_driver_sql(f'ALTER TABLE section_results ADD COLUMN {column} NUMERIC(14,2) CHECK ({column} IS NULL OR {column} >= 0)')
+        entry_columns={r[1] for r in conn.exec_driver_sql('PRAGMA table_info(entries)')}
+        if 'driver_snapshot' not in entry_columns:
+            conn.exec_driver_sql('ALTER TABLE entries ADD COLUMN driver_snapshot JSON')
+        if 'error_counts' not in columns:
+            conn.exec_driver_sql('ALTER TABLE section_results ADD COLUMN error_counts JSON')
+        if version < 4:
+            for event_id, in conn.exec_driver_sql('SELECT id FROM events'):
+                codes=set(CLASSES) | {r[0] for r in conn.exec_driver_sql('SELECT DISTINCT class_code FROM entries WHERE event_id=?',(event_id,))}
+                for code in codes:
+                    conn.exec_driver_sql('INSERT OR IGNORE INTO event_classes (event_id,code,section_group) VALUES (?,?,?)',(event_id,code,''))
+        conn.exec_driver_sql('PRAGMA user_version=4')
     yield
 
 app = FastAPI(title='Autotrial', version='0.1.0', lifespan=lifespan)
@@ -74,12 +88,14 @@ def vehicles(db:Session=Depends(get_db)): return list(db.scalars(select(Vehicle)
 
 @app.post('/api/vehicles',status_code=201)
 def create_vehicle(data:VehicleInput,db:Session=Depends(get_db)):
+    validate_class(db,data.class_code)
     try: values=vehicle_values(data)
     except ValueError as error: raise HTTPException(422,str(error))
     row=Vehicle(**values); db.add(row); commit(db); return row
 
 @app.put('/api/vehicles/{vehicle_id}')
 def edit_vehicle(vehicle_id:int,data:VehicleInput,db:Session=Depends(get_db)):
+    validate_class(db,data.class_code)
     row=get(db,Vehicle,vehicle_id)
     try: values=vehicle_values(data)
     except ValueError as error: raise HTTPException(422,str(error))
@@ -103,7 +119,9 @@ def linked_vehicles(driver_id:int,db:Session=Depends(get_db)):
 
 @app.post('/api/events',status_code=201)
 def create_event(data:EventInput,db:Session=Depends(get_db)):
-    row=Event(**data.model_dump()); db.add(row); commit(db); return row
+    row=Event(**data.model_dump()); db.add(row); db.flush()
+    db.add_all(EventClass(event_id=row.id,code=code) for code in CLASSES)
+    commit(db); return row
 
 @app.post('/api/events/{event_id}/entries',status_code=201)
 def create_entry(event_id:int,data:EntryInput,db:Session=Depends(get_db)):
@@ -118,17 +136,19 @@ def create_entry(event_id:int,data:EntryInput,db:Session=Depends(get_db)):
     vehicle=get(db,Vehicle,vehicle_id)
     try: entry_hcf = round_hcf(vehicle.hcf)
     except ValueError as error: raise HTTPException(422,str(error))
+    class_code=data.class_code or vehicle.class_code
+    validate_class(db,class_code,event_id)
     snapshot={c.name:str(entry_hcf) if c.name=='hcf' else getattr(vehicle,c.name) for c in Vehicle.__table__.columns}
     row=Entry(event_id=event_id,driver_id=driver.id,vehicle_id=vehicle.id,start_number=driver.start_number,
-        driver_name=driver.name,vehicle_snapshot=snapshot,class_code=vehicle.class_code,hcf=entry_hcf,
-        **data.model_dump(exclude={'driver_id','vehicle_id'}))
+        driver_name=driver.name,driver_snapshot={key:getattr(driver,key) for key in ('name','address','email','club','adac_number')},vehicle_snapshot={**snapshot,'class_code':class_code},class_code=class_code,hcf=entry_hcf,
+        **data.model_dump(exclude={'driver_id','vehicle_id','class_code'}))
     db.add(row); commit(db); return row
 
 @app.get('/api/events/{event_id}/entries/{start_number}')
 def lookup(event_id:int,start_number:int,db:Session=Depends(get_db)):
     row=db.scalar(select(Entry).where(Entry.event_id==event_id,Entry.start_number==start_number))
     if not row: raise HTTPException(404,'Startnummer ist für diese Veranstaltung nicht genannt.')
-    return dict(entry=jsonable_encoder(row),sections=[dict(points=str(r.points) if r.points is not None else None,driven=r.driven) for r in row.results])
+    return dict(entry=jsonable_encoder(row),sections=[dict(error_counts=r.error_counts,points=str(r.points) if r.points is not None else None,error1=str(r.error1) if r.error1 is not None else None,error2=str(r.error2) if r.error2 is not None else None,driven=r.driven) for r in row.results])
 
 @app.put('/api/entries/{entry_id}/scores')
 def record(entry_id:int,data:ScoreInput,db:Session=Depends(get_db)):
@@ -172,7 +192,7 @@ def master_ui(request:Request,tab:str='drivers',q:str='',class_code:str='',
     pages = max(1,(count+24)//25)
     page_number = min(page_number,pages)
     rows = rows[(page_number-1)*25:page_number*25]
-    return render(request,'master.html',drivers=all_drivers,vehicles=all_vehicles,classes=CLASSES,
+    return render(request,'master.html',drivers=all_drivers,vehicles=all_vehicles,classes=available_classes(db),
                   tab=tab,q=q,class_code=class_code,rows=rows,count=count,pages=pages,page_number=page_number,
                   by_driver=by_driver,by_vehicle=by_vehicle,
                   previous_url=str(request.url.include_query_params(page_number=page_number-1)),
@@ -180,13 +200,16 @@ def master_ui(request:Request,tab:str='drivers',q:str='',class_code:str='',
 
 @app.get('/ui/events/{event_id}/{page}')
 def event_ui(event_id:int,page:str,request:Request,db:Session=Depends(get_db)):
-    if page not in ('checkin','scoring','results','result-tables'): raise HTTPException(404,'Seite nicht gefunden')
+    if page not in ('checkin','scoring','results','result-tables','participants','classes','teams'): raise HTTPException(404,'Seite nicht gefunden')
     event=get(db,Event,event_id)
     if page=='result-tables':
-        return render(request,'result_tables.html',event=event,result_groups=result_groups(db,event_id))
+        return render(request,'result_tables.html',event=event,result_groups=result_groups(db,event_id),team_results=team_results(db,event_id))
     entries=list(db.scalars(select(Entry).where(Entry.event_id==event_id).order_by(Entry.start_number)))
     return render(request,page+'.html',event=event,drivers=drivers(db),entries=entries,progress=class_progress(db,event_id),page=page,
-                  result_groups=result_groups(db,event_id) if page=='results' else [])
+                  result_groups=result_groups(db,event_id) if page=='results' else [],
+                  participant_groups=participant_groups(db,event_id) if page=='participants' else [],
+                  event_classes=list(db.scalars(select(EventClass).where(EventClass.event_id==event_id).order_by(EventClass.code))),
+                  team_results=team_results(db,event_id) if page in ('teams','results') else [])
 
 @app.get('/print/entries/{entry_id}')
 def card(entry_id:int,request:Request,db:Session=Depends(get_db)):
@@ -198,7 +221,17 @@ def card(entry_id:int,request:Request,db:Session=Depends(get_db)):
 @app.get('/print/events/{event_id}/{class_code}')
 def results(event_id:int,class_code:str,request:Request,db:Session=Depends(get_db)):
     event=get(db,Event,event_id)
-    return render(request,'print_results.html',event=event,class_code=class_code,rows=ranked_results(db,event_id,class_code))
+    if class_code in ('all','adac'):
+        groups=result_groups(db,event_id)
+        if not groups: raise HTTPException(404,'Noch keine Nennungen für diese Veranstaltung.')
+        incomplete=[g['class_code'] for g in groups if not g['ready']]
+        if incomplete: raise HTTPException(409,'Gesamtdruck erst nach vollständiger Erfassung. Offen: '+', '.join(incomplete))
+    else:
+        rows=ranked_results(db,event_id,class_code)
+        groups=[dict(class_code=class_code,rows=rows,total=len(rows))]
+    return render(request,'print_results.html',event=event,groups=groups,adac=class_code=='adac',
+                  starter_count=sum(g['total'] for g in groups),adac_rows=adac_rows(db,groups) if class_code=='adac' else [],
+                  team_results=team_results(db,event_id) if class_code in ('all','adac') else [])
 
 from backend.schemas import CheckinInput
 
@@ -231,11 +264,158 @@ def entry_edit_ui(entry_id:int,request:Request,db:Session=Depends(get_db)):
             choices.append(dict(id=v['id'],label=v['manufacturer']+' '+v['model'],class_code=v['class_code'],hcf=format_hcf(v['hcf']).replace(',','.')))
     changes=list(db.scalars(select(EntryChange).where(EntryChange.entry_id==entry.id).order_by(EntryChange.id.desc())))
     return render(request,'entry_edit.html',event=get(db,Event,entry.event_id),entry=entry,
-                  choices=choices,classes=CLASSES,changes=changes,page='checkin')
+                  choices=choices,classes=available_classes(db,entry.event_id),changes=changes,page='checkin')
 
 @app.put('/api/entries/{entry_id}')
 def update_entry(entry_id:int,data:EntryEditInput,db:Session=Depends(get_db)):
     entry=get(db,Entry,entry_id)
+    validate_class(db,data.class_code,entry.event_id)
     edit_entry(db,entry,data)
     commit(db)
     return dict(id=entry.id,version=entry.version,status=entry.scoring_status)
+
+
+# Reports share the live event data; no separate copied results can become stale.
+def participant_groups(db,event_id):
+    groups={}
+    for entry in db.scalars(select(Entry).where(Entry.event_id==event_id).order_by(Entry.class_code,Entry.start_number)):
+        groups.setdefault(entry.class_code,[]).append(entry)
+    return [dict(class_code=key,entries=entries,section_group=(db.get(EventClass,(event_id,key)).section_group if db.get(EventClass,(event_id,key)) else '')) for key,entries in groups.items()]
+
+
+def adac_rows(db,groups):
+    rows=[]
+    for group in groups:
+        for result in group['rows']:
+            entry=result['entry']
+            contact=entry.driver_snapshot
+            if contact is None:
+                driver=db.get(Driver,entry.driver_id)
+                contact={key:getattr(driver,key) for key in ('address','email','club','adac_number')}
+            rows.append(dict(result,contact=contact,legacy_contact=entry.driver_snapshot is None))
+    return rows
+
+
+@app.get('/print/participants/{event_id}')
+def print_participants(event_id:int,request:Request,db:Session=Depends(get_db)):
+    event=get(db,Event,event_id)
+    groups=participant_groups(db,event_id)
+    return render(request,'print_participants.html',event=event,groups=groups,
+                  total=sum(len(g['entries']) for g in groups))
+
+
+@app.get('/export/events/{event_id}/adac.csv')
+def export_adac(event_id:int,db:Session=Depends(get_db)):
+    import csv,io
+    event=get(db,Event,event_id)
+    groups=result_groups(db,event_id)
+    if not groups: raise HTTPException(404,'Noch keine Nennungen.')
+    if any(not g['ready'] for g in groups): raise HTTPException(409,'Alle Klassen müssen vollständig erfasst sein.')
+    output=io.StringIO(newline='')
+    writer=csv.writer(output,delimiter=';')
+    writer.writerow(['Veranstaltung','Datum','Klasse','Starterzahl','Platz','Punkte B','Startnummer','Name','Anschrift','E-Mail','Verein','ADAC-Mitgliedsnummer','Fahrzeug','HCF','Fehler1 nach HCF','Fehler2','Gesamt','NiW-Grund','Kontaktdaten'])
+    def safe(value):
+        value=str(value)
+        return "'"+value if value.lstrip().startswith(('=','+','-','@')) or value.startswith(('\t','\r','\n')) else value
+    for row in adac_rows(db,groups):
+        e=row['entry'];contact=row['contact']
+        values=[event.name,event.event_date.strftime('%d.%m.%Y'),e.class_code,row['participant_count'],row['rank'],row['points_b'] if row['points_b'] is not None else '',e.start_number,e.driver_name,
+                contact.get('address',''),contact.get('email',''),contact.get('club',''),contact.get('adac_number',''),
+                e.vehicle_snapshot['manufacturer']+' '+e.vehicle_snapshot['model'],format_hcf(e.hcf),
+                format_hcf(row['error1']) if row['error1'] is not None else '',format_hcf(row['error2']) if row['error2'] is not None else '',
+                format_hcf(row['total']) if row['total'] is not None else '',e.niw_reason,
+                'Aktuelle Stammdaten (Altbestand)' if row['legacy_contact'] else 'Stand bei Nennung']
+        writer.writerow([safe(v) for v in values])
+    return Response(('\ufeff'+output.getvalue()).encode('utf-8'),media_type='text/csv; charset=utf-8',
+                    headers={'Content-Disposition':f'attachment; filename="adac-event-{event_id}.csv"'})
+
+
+from backend.schemas import EventClassInput, TeamInput
+
+
+def available_classes(db,event_id=None):
+    query=select(EventClass.code)
+    if event_id is not None: query=query.where(EventClass.event_id==event_id)
+    return sorted(set(db.scalars(query)) | (set(CLASSES) if event_id is None else set()))
+
+
+def validate_class(db,code,event_id=None):
+    if code not in available_classes(db,event_id):
+        raise HTTPException(422,'Klasse zuerst unter Veranstaltungsklassen anlegen.')
+
+
+@app.post('/api/events/{event_id}/classes',status_code=201)
+def add_event_class(event_id:int,data:EventClassInput,db:Session=Depends(get_db)):
+    get(db,Event,event_id)
+    row=db.get(EventClass,(event_id,data.code))
+    if row:
+        row.section_group=data.section_group
+        row.trophy_count=data.trophy_count
+    else: db.add(EventClass(event_id=event_id,**data.model_dump()))
+    commit(db)
+    return {'status':'saved'}
+
+
+@app.delete('/api/events/{event_id}/classes/{code}')
+def remove_event_class(event_id:int,code:str,db:Session=Depends(get_db)):
+    row=db.get(EventClass,(event_id,code))
+    if row is None: raise HTTPException(404,'Klasse nicht gefunden.')
+    if db.scalar(select(Entry.id).where(Entry.event_id==event_id,Entry.class_code==code).limit(1)):
+        raise HTTPException(409,'Klasse enthält Nennungen. Zuerst die Nennungen einer anderen Klasse zuordnen.')
+    db.delete(row);commit(db);return {'status':'deleted'}
+
+
+def save_team(db,event_id,data,team=None):
+    entries=list(db.scalars(select(Entry).where(Entry.event_id==event_id,Entry.start_number.in_(data.start_numbers))))
+    if len(entries)!=len(data.start_numbers): raise HTTPException(422,'Alle Startnummern müssen für diese Veranstaltung genannt sein.')
+    if team is None:
+        team=Team(event_id=event_id,name=data.name);db.add(team)
+    else:
+        if team.version!=data.version: raise HTTPException(409,'Mannschaft inzwischen geändert. Bitte neu laden.')
+        team.name=data.name;team.version+=1
+    current={m.entry_id:m for m in team.members}
+    team.members[:]=[current.get(e.id) or TeamMember(entry_id=e.id) for e in entries]
+    commit(db);return {'id':team.id,'version':team.version}
+
+
+@app.post('/api/events/{event_id}/teams',status_code=201)
+def create_team(event_id:int,data:TeamInput,db:Session=Depends(get_db)):
+    get(db,Event,event_id);return save_team(db,event_id,data)
+
+
+@app.put('/api/teams/{team_id}')
+def update_team(team_id:int,data:TeamInput,db:Session=Depends(get_db)):
+    team=get(db,Team,team_id);return save_team(db,team.event_id,data,team)
+
+
+def team_results(db,event_id):
+    groups=result_groups(db,event_id)
+    scored={r['entry'].id:r for g in groups for r in g['rows']}
+    results=[]
+    for team in db.scalars(select(Team).where(Team.event_id==event_id).order_by(Team.name)):
+        members=[]
+        for member in team.members:
+            entry=db.get(Entry,member.entry_id)
+            row=scored.get(entry.id)
+            members.append(dict(entry=entry,points=row['points_b'] if row else None,ready=row is not None,counted=False))
+        members.sort(key=lambda m:(-(m['points'] or 0),m['entry'].start_number))
+        ready=all(m['ready'] for m in members)
+        if ready:
+            for m in members[:3]: m['counted']=True
+        results.append(dict(team=team,members=members,ready=ready,total=sum(m['points'] or 0 for m in members[:3]) if ready else None,rank=None))
+    # A team placing is only final when all nominated teams are complete.
+    if results and all(r['ready'] for r in results):
+        results.sort(key=lambda r:(-r['total'],r['team'].name.casefold(),r['team'].id))
+        previous=None;rank=0
+        for index,row in enumerate(results,1):
+            if row['total']!=previous: rank=index
+            row['rank']=rank;previous=row['total']
+    return results
+
+
+@app.get('/print/teams/{event_id}')
+def print_teams(event_id:int,request:Request,db:Session=Depends(get_db)):
+    event=get(db,Event,event_id);rows=team_results(db,event_id)
+    if not rows: raise HTTPException(404,'Noch keine Mannschaften genannt.')
+    if not all(row['ready'] for row in rows): raise HTTPException(409,'Die zugehörigen Klassen sind noch nicht vollständig erfasst.')
+    return render(request,'print_teams.html',event=event,team_results=rows)

@@ -1,4 +1,4 @@
-# Datenmodell v1
+# Datenmodell v4
 
 | Entität | Zweck und Bedingungen |
 | --- | --- |
@@ -7,7 +7,7 @@
 | DriverVehicle | n:m-Verknüpfung. Zusammengesetzter Primärschlüssel; partieller Unique-Index erlaubt höchstens ein Standardfahrzeug je Fahrer. |
 | Event | Datum, Ort, Veranstalter, Sektionen, Durchläufe, Reglementversion |
 | Entry | Genau ein Start je Fahrer/Event; zusätzliche eindeutige Event-Startnummer. Kopie von Name, Startnummer, gesamten Fahrzeugdaten, Klasse, HCF. Beifahrer separat, kein Exklusivitätszwang. |
-| SectionResult | Ein Wert je Nennung und ordinaler Sektion/Durchlauf. Decimal-Endwert oder NULL, zusätzlich gefahren/nicht gefahren. |
+| SectionResult | Je Sektion/Durchlauf Fehler1 und Fehler2 als optionale Rohpunkte, berechneter Endwert oder alter Endwert; zusätzlich gefahren/nicht gefahren. |
 
 Startnummern werden im Grundgerüst nicht umnummeriert. Fahrzeugänderungen per API
 ändern nur Stammdaten und zukünftige Nennungen. Historische Drucke und Ranglisten
@@ -43,8 +43,36 @@ Werte verwenden Decimal/Numeric (4 Nachkommastellen für Endwerte, 6 für HCF).
 Das ist die Speicherpräzision. HCF-Werte werden vor dem Speichern und für neue
 Nennungen kaufmännisch auf zwei Nachkommastellen gerundet (Nutzervorgabe).
 Historische Snapshots bleiben unverändert.
-Ränge werden nach exakten gespeicherten Summen bestimmt: 1, 1, 3.
+Ränge werden nach der auf zwei Nachkommastellen gerundeten Gesamtsumme bestimmt: 1, 1, 3.
 
 Entry-Versionen verhindern das stille Überschreiben veralteter Eingabemasken.
 Unique-Constraints und Transaktionen sichern Nennungen und Standardzuordnungen.
-Fremdschlüssel sind aktiv. Schema-Version: SQLite `user_version = 1`.
+Fremdschlüssel sind aktiv. Schema-Version: SQLite `user_version = 4`.
+
+Fehler1 wird aus allen getrennt erfassten Sektionen summiert und einmal durch den
+HCF des Entry-Snapshots geteilt. Fehler2 und etwaige alte Endwerte werden addiert.
+Erst das Gesamtergebnis wird kaufmännisch auf zwei Nachkommastellen gerundet.
+Der je Sektion zwischengespeicherte Endwert (vier Nachkommastellen) ist bei
+getrennten Fehlern nicht die Grundlage der Gesamtsumme, um Rundungsdrift zu vermeiden.
+Beide Rohfelder sind für eine vollständige Sektion erforderlich.
+
+Die Migration ergänzt error1/error2 als NULL bei Altdaten und erhält points.
+Eine Mischung aus alten und neuen Sektionen ist möglich; getrennte Fehlersummen
+werden erst angezeigt, wenn alle Sektionen aufgeteilt sind. Beim Ändern von HCF
+oder Fahrzeug ist weiterhin eine erneute Bestätigung der Bordkarte erforderlich.
+
+## Klassen, Kontaktdaten und Mannschaften
+
+EventClass gehört zu einer Veranstaltung und enthält Code, Sektionsgruppe und
+optionale feste Pokalanzahl. Neue Veranstaltungen erhalten die Standardklassen.
+Die Migration ergänzt bestehende Veranstaltungsklassen einschließlich genutzter
+Klassenbezeichnungen. Belegte Klassen können nicht gelöscht werden.
+
+Entry.driver_snapshot hält Kontakt-, Vereins- und ADAC-Daten zum Nennungszeitpunkt.
+Bei älteren Nennungen bleibt dieser Snapshot NULL; Berichte kennzeichnen den
+Rückgriff auf heutige Stammdaten. SectionResult.error_counts speichert bei
+Anzahl-Eingabe die einzelnen Zähler als JSON und die daraus berechneten Rohpunkte.
+
+Team gehört zur Veranstaltung. TeamMember verbindet 3–5 unterschiedliche
+Event-Nennungen. Besetzungsänderungen sind versioniert. Punkte und Platz werden
+aus aktuellen Klassenwertungen abgeleitet und nicht separat gespeichert.

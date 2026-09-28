@@ -66,6 +66,7 @@ class Entry(Base):
     start_number: Mapped[int]
     driver_name: Mapped[str]
     vehicle_snapshot: Mapped[dict] = mapped_column(JSON)
+    driver_snapshot: Mapped[dict | None] = mapped_column(JSON)
     class_code: Mapped[str]
     hcf: Mapped[Decimal] = mapped_column(Numeric(12, 6))
     codriver: Mapped[str] = mapped_column(default='')
@@ -93,6 +94,9 @@ class SectionResult(Base):
     ordinal: Mapped[int]
     # Final paper score, including applicable HCF. Never divide the total again.
     points: Mapped[Decimal | None] = mapped_column(Numeric(14, 4))
+    error_counts: Mapped[dict | None] = mapped_column(JSON)
+    error1: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    error2: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     driven: Mapped[bool] = mapped_column(default=True)
     __table_args__ = (UniqueConstraint('entry_id','ordinal'), CheckConstraint('ordinal > 0'), CheckConstraint('points IS NULL OR points >= 0'))
 
@@ -104,3 +108,26 @@ class EntryChange(Base):
     reason: Mapped[str]
     before: Mapped[dict] = mapped_column(JSON)
     after: Mapped[dict] = mapped_column(JSON)
+
+
+class EventClass(Base):
+    __tablename__ = 'event_classes'
+    event_id: Mapped[int] = mapped_column(ForeignKey('events.id'),primary_key=True)
+    code: Mapped[str] = mapped_column(String(30),primary_key=True)
+    section_group: Mapped[str] = mapped_column(default='')
+    trophy_count: Mapped[int | None]
+
+class Team(Base):
+    __tablename__ = 'teams'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    event_id: Mapped[int] = mapped_column(ForeignKey('events.id'))
+    name: Mapped[str] = mapped_column(String(100))
+    version: Mapped[int] = mapped_column(default=1)
+    members: Mapped[list['TeamMember']] = relationship(cascade='all, delete-orphan')
+    __mapper_args__ = {'version_id_col': version, 'version_id_generator': False}
+    __table_args__ = (UniqueConstraint('event_id','name'),)
+
+class TeamMember(Base):
+    __tablename__ = 'team_members'
+    team_id: Mapped[int] = mapped_column(ForeignKey('teams.id'),primary_key=True)
+    entry_id: Mapped[int] = mapped_column(ForeignKey('entries.id'),primary_key=True)

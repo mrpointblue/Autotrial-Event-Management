@@ -38,7 +38,7 @@ nach dem Image-Build kein Internet und keine externen Schriftarten/CDNs.
 5. Papier-/Unterschriftenprüfung und technische Abnahme bestätigen. Bezahlstatus
    separat erfassen. Anschließend Bordkarte im Browser drucken, bei Bedarf als PDF.
    Die Papierabnahme ersetzt keine erforderlichen Originalunterschriften.
-6. Nach dem Event Startnummer eingeben und **bereits berechnete Sektions-Endwerte**
+6. Nach dem Event Startnummer eingeben und **Fehler1 und Fehler2 als Rohpunkte je Sektion**
    von den Karten übernehmen. Reihenfolge ist unabhängig von Klasse und Fahrzeug.
    Leere Werte bleiben offen, 0 zählt als erfasst. Zwischenstände sind erlaubt.
 7. Klassenfortschritt bleibt neben der Eingabe sichtbar und aktualisiert sich alle
@@ -51,9 +51,10 @@ nach dem Image-Build kein Internet und keine externen Schriftarten/CDNs.
 
 **Nicht jede Fehlerart wird durch den HCF geteilt.** Ein einzelner Rohgesamtwert
 pro Sektion reicht daher nicht für eine korrekte automatische HCF-Verrechnung.
-Diese Version übernimmt Endwerte inkl. HCF; sie dividiert Summen niemals erneut.
-Falls die vorhandenen Papierkarten nur Rohwerte enthalten, muss vor dem echten
-Einsatz die Eingabe um HCF-relevante und feste Punkte ergänzt werden.
+Die Erfassung trennt Fehler1 (HCF-relevant) und Fehler2 (unverändert).
+Gesamt = Summe Fehler1 / Nennungs-HCF + Summe Fehler2. Erst die Gesamtsumme
+wird kaufmännisch auf zwei Nachkommastellen gerundet. Alte Endwerte bleiben erhalten
+und werden niemals erneut durch den HCF geteilt.
 
 Der HCF wird für Geländewagen, ATV und Quad automatisch aus den Maßen in ganzen
 cm und den fahrzeugartspezifischen Korrekturen vorgeschlagen. Basisformel und
@@ -116,8 +117,9 @@ docker compose start
 
 Sicherungen extern aufbewahren. `docker compose down` erhält das Volume;
 `docker compose down -v` löscht es. Keine realen Teilnehmerdaten ins Repository.
-Datenbankschema v1 wird beim ersten Start initialisiert. Noch keine Migrationen
-für spätere Versionen; vor Schemaänderungen gesicherte Migrationen ergänzen.
+Datenbankschema v4 ergänzt beim Start Fehlerfelder, Kontakt-Snapshots sowie Klassen und Mannschaften.
+Bestehende Endwerte bleiben unverändert; es wird keine Fehleraufteilung erfunden.
+Vor dem Update die oben beschriebene Datensicherung erstellen.
 
 ## Nächste Ausbaustufe
 
@@ -158,3 +160,35 @@ gerundet. Die Teilnehmerzahl wird je Klasse einschließlich NiW ermittelt.
 NiW erhält keine Punkte (Anzeige „—“). Gleiche Plätze erhalten dieselben Punkte.
 Die Ergebnisseite zeigt vollständige Klassen als Tabellen und offene Klassen
 mit ihren fehlenden Fahrern. Sie aktualisiert sich alle fünf Sekunden.
+
+## Ergebnisdruck und Siegerehrung
+
+Unter Ergebnisse: einzelne Klassen, alle Klassen für die Siegerehrung oder die
+ADAC-Gesamtauswertung drucken bzw. im Druckdialog als PDF speichern. A4 quer,
+MSC-Kopf und Tabelle orientieren sich an der bereitgestellten Ergebnisliste 2025.
+Das MSC-Logo wurde aus dieser Vorlage übernommen. Namen bleiben als ein Feld
+erhalten, damit mehrteilige Namen nicht falsch aufgeteilt werden.
+
+Beim Siegerehrungsdruck beginnt jede Klasse auf einer eigenen Seite und wird
+bei Bedarf auf die Seitenhöhe angepasst. Die ADAC-Liste läuft klassenweise über
+mehrere Seiten, mit wiederholtem Tabellenkopf. Es gibt keine klassenübergreifende
+Rangfolge. Gesamtdruck setzt vollständig erfasste Klassen voraus, einzelne fertige
+Klassen können vorher gedruckt werden.
+
+Fehler1 im Ausdruck ist bereits durch den Nennungs-HCF geteilt. Fehler2 bleibt
+unverändert. Alte oder nur teilweise aufgeteilte Ergebnisse zeigen bei beiden
+Fehlerarten einen Strich, behalten aber ihren Gesamtwert. NiW bleibt ohne Punkte.
+Mannschaften werden aus drei bis fünf Startnummern genannt und über die besten drei Klassenpunktzahlen gewertet.
+
+## Funktionsumfang der Excel-Auswertung
+
+Die [Excel-Abgleichsdokumentation](docs/excel-parity.md) beschreibt die Funktionen
+der bereitgestellten Auswertungsmappe und ihre Umsetzung. Neu sind konfigurierbare
+Veranstaltungsklassen mit Sektionsgruppe/Pokalplanung, Fehleranzahl-Eingabe,
+Mannschaftsnennung und automatische Best-drei-Wertung sowie Starterliste und
+ADAC-CSV. Der ADAC-Druck enthält zusätzlich Anschrift, Verein und Mitgliedsnummer.
+
+Bei der Nennung kann eine abweichende Veranstaltungsklasse gewählt werden.
+Standardklassen bleiben als Ausgangspunkt erhalten, unbenutzte können entfernt
+werden. Klassen mit Nennungen können erst nach deren Umzuordnung entfernt werden.
+Eine neue Veranstaltung beginnt mit unabhängigen Klassen und Mannschaften.

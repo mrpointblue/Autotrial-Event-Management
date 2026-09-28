@@ -13,7 +13,7 @@ Originaldateien wurden nicht verändert und werden nicht im Code-Repository vert
 | S. 2–3, §3 | O1/O2/S1/S2/S3/V1/V2/P/J/Q1/Q2a/Q2b/SbS; Abnahme entscheidet | Klassenvalidierung, automatischer HCF-Vorschlag mit begründeter manueller Korrektur |
 | S. 8, §4 | Papierabnahme vor Ausgabe der Bordkarte | Druck benötigt bestätigte Papier- und technische Abnahme |
 | S. 8, §5 | Papierkarte alleinige Wertungsgrundlage; Verlust/Nichtabgabe/Verspätung führen zum Ausschluss | missing bleibt offen bis begründete NiW-Entscheidung |
-| S. 9–11, §6 | 8/20/40/40 HCF-relevant, andere Strafen unverändert | Eingabe fertiger Endwerte; keine pauschale HCF-Division |
+| S. 9–11, §6 | 8/20/40/40 HCF-relevant, andere Strafen unverändert | Fehler1 als HCF-relevante Rohpunkte, Fehler2 unverändert; Summe Fehler1 / HCF + Summe Fehler2 |
 | S. 10, §6.1 | mind. 70 % gefahren; sonst NiW | gefahren-Markierung und explizite NiW-Entscheidung |
 | S. 11, §6.2 | kleinste Summe gewinnt; Gleichstand gleicher Rang, Folgeplatz frei | Decimal-Summe, Wettbewerbsrangfolge |
 | Nennformular S. 1 | Person, Kontakt, Club, ADAC, Beifahrer, Technik, Klasse/HCF, bezahlt/Abnahme | Felder im Stamm bzw. Entry; Papierunterschriften werden geprüft |

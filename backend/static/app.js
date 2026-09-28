@@ -12,6 +12,7 @@ function values(form) {
   const data=Object.fromEntries(new FormData(form));
   form.querySelectorAll('input[type=checkbox]').forEach(input=>data[input.name]=input.checked);
   form.querySelectorAll('input[type=number]').forEach(input=>{data[input.name]=input.value===''?null:input.value;});
+  if(data.class_code==='')data.class_code=null;
   return data;
 }
 async function submit(form,action) {
@@ -61,15 +62,49 @@ if(lookup)lookup.addEventListener('submit',event=>{event.preventDefault();submit
   document.getElementById('entry-heading').textContent=`#${e.start_number} · ${e.driver_name} · ${e.class_code} · HCF ${displayHcf(e.hcf)}`;
   const sections=document.getElementById('sections');sections.replaceChildren();
   for(let i=0;i<Number(lookup.dataset.count);i++){
-    const box=document.createElement('div'),label=document.createElement('label'),input=document.createElement('input');
-    label.textContent=`Sektionswert ${i+1}`;input.type='number';input.min='0';input.step='0.0001';input.dataset.points=i;input.value=data.sections[i]?.points??'';label.append(input);box.append(label);
+    const box=document.createElement('div');box.dataset.section=i;
+    const old=data.sections[i];
+    const heading=document.createElement('h3');heading.textContent=`Sektion ${i+1}`;box.append(heading);
+    if(old?.points!=null && old.error1==null && old.error2==null){
+      box.dataset.legacy=old.points;
+      const note=document.createElement('p');note.className='hint';note.textContent=`Bisheriger Gesamtwert: ${displayHcf(old.points)}. Noch nicht aufgeteilt. Bei Eingabe von Fehler1/2 wird dieser Wert ersetzt.`;box.append(note);
+    }
+    const modeLabel=document.createElement('label');modeLabel.textContent='Eingabeart';
+    const mode=document.createElement('select');mode.dataset.scoreMode=i;
+    mode.add(new Option('Fehler1 / Fehler2 als Rohpunkte','raw'));
+    mode.add(new Option('Anzahl der einzelnen Fehler','counts'));
+    mode.value=old?.error_counts?'counts':'raw';modeLabel.append(mode);box.append(modeLabel);
+    const rawFields=document.createElement('div'),countFields=document.createElement('div');
+    for(const key of ['error1','error2']){
+      const label=document.createElement('label'),input=document.createElement('input');
+      label.textContent=key==='error1'?'Fehler1 (Rohpunkte, mit HCF)':'Fehler2 (ohne HCF)';
+      input.type='number';input.min='0';input.step='0.01';input.dataset[key]=i;input.value=old?.[key]??'';
+      input.addEventListener('input',()=>{delete box.dataset.legacy;});label.append(input);rawFields.append(label);
+    }
+    const penalties=[['reverse','Rückwärtsfahren · 8'],['ball','Kugel · 20'],['pole','Torstange · 40'],['foot','Fuß · 40'],['band','Band · 80'],['exit','Sektion verlassen · 80'],['missed_gate','Tor ausgelassen / Fremdhilfe · 80'],['not_driven','900-Punkte-Fälle']];
+    for(const [key,title] of penalties){
+      const label=document.createElement('label'),input=document.createElement('input');label.textContent=title;
+      input.type='number';input.min='0';input.max='100000';input.step='1';input.dataset.penalty=key;input.value=old?.error_counts?.[key]??0;
+      label.append(input);countFields.append(label);
+    }
+    const setMode=()=>{rawFields.hidden=mode.value!=='raw';countFields.hidden=mode.value!=='counts';};
+    mode.addEventListener('change',()=>{delete box.dataset.legacy;setMode();});setMode();box.append(rawFields,countFields);
     const check=document.createElement('label'),driven=document.createElement('input');check.className='check';driven.type='checkbox';driven.dataset.driven=i;driven.checked=data.sections[i]?.driven??true;check.append(driven,document.createTextNode('Sektion gefahren'));box.append(check);sections.append(box);
   }
   document.getElementById('score-editor').hidden=false;sections.querySelector('input').focus();
 });});
 if(score)score.addEventListener('submit',event=>{event.preventDefault();submit(score,async()=>{
-  const sections=Array.from(score.querySelectorAll('[data-points]')).map(input=>({points:input.value===''?null:input.value,driven:score.querySelector(`[data-driven="${input.dataset.points}"]`).checked}));
-  if(score.elements.card_status.value==='missing'&&sections.some(s=>s.points!==null))throw new Error('Bei fehlender Bordkarte dürfen keine Sektionswerte eingetragen sein.');
+  const sections=Array.from(score.querySelectorAll('[data-section]')).map(box=>{
+    const driven=box.querySelector('[data-driven]').checked;
+    if(box.querySelector('[data-score-mode]').value==='counts'){
+      const error_counts=Object.fromEntries(Array.from(box.querySelectorAll('[data-penalty]'),input=>[input.dataset.penalty,input.value===''?null:Number(input.value)]));
+      return {error_counts,driven};
+    }
+    if(box.dataset.legacy!==undefined)return {points:box.dataset.legacy,driven};
+    const error1=box.querySelector('[data-error1]').value,error2=box.querySelector('[data-error2]').value;
+    return {error1:error1===''?null:error1,error2:error2===''?null:error2,driven};
+  });
+  if(score.elements.card_status.value==='missing'&&sections.some(s=>s.points!=null||s.error1!=null||s.error2!=null||s.error_counts!=null))throw new Error('Bei fehlender Bordkarte dürfen keine Sektionswerte eingetragen sein.');
   const data={version:Number(score.elements.version.value),card_status:score.elements.card_status.value,niw_reason:score.elements.niw_reason.value,sections:score.elements.card_status.value==='received'?sections:[]};
   const result=await api(`/api/entries/${score.elements.entry_id.value}/scores`,data,'PUT');
   show(result.status==='niw'?'NiW gespeichert.':result.status==='complete'?'Bordkarte vollständig gespeichert.':'Zwischenstand gespeichert – Bordkarte bleibt offen.');
@@ -156,3 +191,12 @@ if(resultTables){
     finally{refreshing=false;}
   },5000);
 }
+
+
+document.querySelectorAll('.team-form').forEach(form=>form.addEventListener('submit',event=>{
+  event.preventDefault();submit(form,async()=>{
+    const start_numbers=Array.from({length:5},(_,i)=>form.elements['member'+i].value).filter(Boolean).map(Number);
+    await api(form.dataset.endpoint,{name:form.elements.name.value,version:Number(form.elements.version.value),start_numbers},form.dataset.method);
+    location.reload();
+  });
+}));
