@@ -9,7 +9,7 @@ from sqlalchemy import select, update, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
-from backend.database import Base, engine, get_db
+from backend.database import Base, engine, get_db, SessionLocal
 from backend.models import CLASSES, Driver, Vehicle, DriverVehicle, Event, Entry, EventClass, Team, TeamMember
 from backend.schemas import DriverInput, VehicleInput, EventInput, LinkInput, EntryInput, ScoreInput
 from backend.services.hcf import calculate_hcf, vehicle_values, round_hcf, format_hcf
@@ -60,7 +60,21 @@ def commit(db):
         raise HTTPException(409,'Datensatz inzwischen geändert. Bitte neu laden.')
 
 def render(request,name,**context):
-    return templates.TemplateResponse(request=request,name=name,context=context)
+    full_ui=request.url.path.startswith('/ui/') and name not in ('result_tables.html','score_overview.html')
+    clear=full_ui and request.url.path=='/ui/events' and request.query_params.get('clear_event')=='1'
+    active=context.get('event')
+    if full_ui and not active and not clear:
+        saved=request.cookies.get('active_event','')
+        if saved.isdigit() and len(saved)<=18:
+            with SessionLocal() as session:
+                active=session.get(Event,int(saved))
+            if active is not None: context['event']=active
+    if clear: context.pop('event',None)
+    response=templates.TemplateResponse(request=request,name=name,context=context)
+    if full_ui:
+        if clear or active is None: response.delete_cookie('active_event')
+        else: response.set_cookie('active_event',str(active.id),httponly=True,samesite='lax')
+    return response
 
 @app.exception_handler(HTTPException)
 async def error_page(request,exc):
