@@ -51,7 +51,7 @@ class EventInput(Input):
     event_date: date
     location: str = ''
     organizer: str = ''
-    section_count: int = Field(ge=1,le=30)
+    section_count: int = Field(default=6,ge=1,le=30)
     rounds: int = Field(default=1,ge=1,le=10)
 
 class LinkInput(Input):
