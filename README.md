@@ -192,3 +192,21 @@ Bei der Nennung kann eine abweichende Veranstaltungsklasse gewählt werden.
 Standardklassen bleiben als Ausgangspunkt erhalten, unbenutzte können entfernt
 werden. Klassen mit Nennungen können erst nach deren Umzuordnung entfernt werden.
 Eine neue Veranstaltung beginnt mit unabhängigen Klassen und Mannschaften.
+
+## Startnummern, Fahrzeugkarten und Korrekturen
+
+Beim Fahrer-Anlegen sind Startnummern von 1 bis 999 möglich. Ohne Eingabe wird
+die kleinste freie Nummer vergeben; vorhandene Lücken werden wieder genutzt.
+Die automatische Vergabe ist gegen gleichzeitige Registrierungen abgesichert.
+Eine belegte oder außerhalb des Bereichs liegende Nummer wird zurückgewiesen.
+
+In der Fahrerübersicht können alle zugeordneten Fahrzeugkarten gemeinsam oder
+einzeln gedruckt werden. Jede Karte gehört zur Kombination aus Startnummer und
+Fahrzeug. Zwei Fahrzeuge ergeben zwei Karten mit derselben Startnummer; ein
+geteiltes Fahrzeug ergibt je Fahrer eine Karte mit dessen Startnummer. Format
+85,6 × 53,98 mm, Druck mit 100 % / tatsächlicher Größe und ohne Browser-Kopfzeilen.
+
+Unter Bordkarten erfassen führt „Klasse öffnen / bearbeiten“ zur Klassenübersicht.
+Jede Nennung lässt sich erneut öffnen und korrigieren, einschließlich alter
+Gesamtwerte und NiW. Nach dem Speichern werden Liste und Fortschritt aktualisiert.
+Versionsprüfung schützt vor dem Überschreiben zwischenzeitlicher Änderungen.

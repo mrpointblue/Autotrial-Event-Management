@@ -43,6 +43,7 @@ async function refreshProgress(){
     for(const g of groups){
       const section=document.createElement('section');section.className='class-card'+(g.ready?' success':'');
       const title=document.createElement('strong');title.textContent=`${g.class_code} · ${g.complete}/${g.total} bearbeitet`;section.append(title);
+      const overviewLink=document.createElement('a');overviewLink.href=`/ui/events/${progress.dataset.event}/scoring?class_code=${encodeURIComponent(g.class_code)}`;overviewLink.textContent='Klasse öffnen / bearbeiten';section.append(document.createElement('br'),overviewLink);
       const status=document.createElement('p');status.textContent=`${g.niw} NiW · ${g.ready?'Vollständig':(g.total-g.complete)+' offen'}`;section.append(status);
       for(const d of g.missing){const p=document.createElement('p');p.textContent=`#${d.start_number} ${d.name} · ${d.card_status==='missing'?'Bordkarte fehlt':'Werte unvollständig'}`;section.append(p);}
       if(g.ready){const a=document.createElement('a');a.href=`/print/events/${progress.dataset.event}/${encodeURIComponent(g.class_code)}`;a.target='_blank';a.textContent='Ergebnisliste drucken';section.append(a);}
@@ -54,7 +55,9 @@ async function refreshProgress(){
 }
 if(progress)setInterval(refreshProgress,5000);
 const lookup=document.getElementById('lookup-form'),score=document.getElementById('score-form');
-if(lookup)lookup.addEventListener('submit',event=>{event.preventDefault();submit(lookup,async()=>{
+let scoreDirty=false;
+if(score)score.addEventListener('input',()=>{scoreDirty=true;});
+if(lookup)lookup.addEventListener('submit',event=>{event.preventDefault();if(scoreDirty&&!window.confirm('Ungespeicherte Änderungen verwerfen und eine andere Bordkarte öffnen?'))return;submit(lookup,async()=>{
   document.getElementById('score-editor').hidden=true;
   const data=await api(`/api/events/${lookup.dataset.event}/entries/${lookup.elements.start_number.value}`,undefined,'GET');
   const e=data.entry;score.elements.entry_id.value=e.id;score.elements.version.value=e.version;score.elements.niw_reason.value=e.niw_reason;
@@ -73,7 +76,9 @@ if(lookup)lookup.addEventListener('submit',event=>{event.preventDefault();submit
     const mode=document.createElement('select');mode.dataset.scoreMode=i;
     mode.add(new Option('Fehler1 / Fehler2 als Rohpunkte','raw'));
     mode.add(new Option('Anzahl der einzelnen Fehler','counts'));
-    mode.value=old?.error_counts?'counts':'raw';modeLabel.append(mode);box.append(modeLabel);
+    const legacy=old?.points!=null&&old.error1==null&&old.error2==null;
+    if(legacy)mode.add(new Option('Gespeicherten Gesamtwert korrigieren','legacy'));
+    mode.value=legacy?'legacy':old?.error_counts?'counts':'raw';modeLabel.append(mode);box.append(modeLabel);
     const rawFields=document.createElement('div'),countFields=document.createElement('div');
     for(const key of ['error1','error2']){
       const label=document.createElement('label'),input=document.createElement('input');
@@ -87,11 +92,13 @@ if(lookup)lookup.addEventListener('submit',event=>{event.preventDefault();submit
       input.type='number';input.min='0';input.max='100000';input.step='1';input.dataset.penalty=key;input.value=old?.error_counts?.[key]??0;
       label.append(input);countFields.append(label);
     }
-    const setMode=()=>{rawFields.hidden=mode.value!=='raw';countFields.hidden=mode.value!=='counts';};
+    const legacyFields=document.createElement('label');legacyFields.textContent='Gesamtwert einschließlich HCF (Altbestand)';
+    const legacyInput=document.createElement('input');legacyInput.type='number';legacyInput.min='0';legacyInput.step='0.0001';legacyInput.dataset.legacyPoints=i;legacyInput.value=legacy?old.points:'';legacyFields.append(legacyInput);box.append(legacyFields);
+    const setMode=()=>{rawFields.hidden=mode.value!=='raw';countFields.hidden=mode.value!=='counts';legacyFields.hidden=mode.value!=='legacy';};
     mode.addEventListener('change',()=>{delete box.dataset.legacy;setMode();});setMode();box.append(rawFields,countFields);
     const check=document.createElement('label'),driven=document.createElement('input');check.className='check';driven.type='checkbox';driven.dataset.driven=i;driven.checked=data.sections[i]?.driven??true;check.append(driven,document.createTextNode('Sektion gefahren'));box.append(check);sections.append(box);
   }
-  document.getElementById('score-editor').hidden=false;sections.querySelector('input').focus();
+  scoreDirty=false;document.getElementById('score-editor').hidden=false;document.getElementById('score-editor').scrollIntoView({behavior:'smooth',block:'start'});Array.from(sections.querySelectorAll('input')).find(input=>input.getClientRects().length)?.focus({preventScroll:true});
 });});
 if(score)score.addEventListener('submit',event=>{event.preventDefault();submit(score,async()=>{
   const sections=Array.from(score.querySelectorAll('[data-section]')).map(box=>{
@@ -100,15 +107,16 @@ if(score)score.addEventListener('submit',event=>{event.preventDefault();submit(s
       const error_counts=Object.fromEntries(Array.from(box.querySelectorAll('[data-penalty]'),input=>[input.dataset.penalty,input.value===''?null:Number(input.value)]));
       return {error_counts,driven};
     }
-    if(box.dataset.legacy!==undefined)return {points:box.dataset.legacy,driven};
+    if(box.querySelector('[data-score-mode]').value==='legacy'){const value=box.querySelector('[data-legacy-points]').value;return {points:value===''?null:value,driven};}
     const error1=box.querySelector('[data-error1]').value,error2=box.querySelector('[data-error2]').value;
     return {error1:error1===''?null:error1,error2:error2===''?null:error2,driven};
   });
   if(score.elements.card_status.value==='missing'&&sections.some(s=>s.points!=null||s.error1!=null||s.error2!=null||s.error_counts!=null))throw new Error('Bei fehlender Bordkarte dürfen keine Sektionswerte eingetragen sein.');
   const data={version:Number(score.elements.version.value),card_status:score.elements.card_status.value,niw_reason:score.elements.niw_reason.value,sections:score.elements.card_status.value==='received'?sections:[]};
   const result=await api(`/api/entries/${score.elements.entry_id.value}/scores`,data,'PUT');
+  scoreDirty=false;
   show(result.status==='niw'?'NiW gespeichert.':result.status==='complete'?'Bordkarte vollständig gespeichert.':'Zwischenstand gespeichert – Bordkarte bleibt offen.');
-  document.getElementById('score-editor').hidden=true;lookup.reset();lookup.elements.start_number.focus();await refreshProgress();
+  document.getElementById('score-editor').hidden=true;lookup.reset();lookup.elements.start_number.focus();await refreshProgress();await refreshScoreOverview();
 });});
 
 const vehicleForm=document.getElementById('vehicle-form');
@@ -200,3 +208,40 @@ document.querySelectorAll('.team-form').forEach(form=>form.addEventListener('sub
     location.reload();
   });
 }));
+
+
+const scoreOverview=document.getElementById('score-overview');
+if(scoreOverview)scoreOverview.addEventListener('click',event=>{
+  const button=event.target.closest('[data-edit-score]');
+  if(!button)return;
+  lookup.elements.start_number.value=button.dataset.editScore;
+  lookup.requestSubmit();
+});
+async function refreshScoreOverview(){
+  if(!scoreOverview)return;
+  const response=await fetch(`/ui/events/${scoreOverview.dataset.event}/score-overview?class_code=${encodeURIComponent(scoreOverview.dataset.class)}`);
+  if(!response.ok){show('Gespeichert. Klassenübersicht konnte nicht aktualisiert werden; bitte neu laden.',true);return;}
+  const fragment=new DOMParser().parseFromString(await response.text(),'text/html');
+  scoreOverview.replaceChildren(...fragment.body.childNodes);
+}
+window.addEventListener('beforeunload',event=>{if(scoreDirty){event.preventDefault();event.returnValue='';}});
+
+
+const driverForm=document.getElementById('driver-form');
+if(driverForm){
+  const number=driverForm.elements.start_number,state=document.getElementById('start-number-state');
+  let free=null;
+  function validateNumber(){
+    const value=number.value;
+    const occupied=value!==''&&free!==null&&!free.free_numbers.includes(Number(value));
+    number.setCustomValidity(occupied?'Diese Startnummer ist nicht frei. Bitte eine freie Nummer von 1 bis 999 wählen.':'');
+    state.textContent=occupied?'Diese Startnummer ist bereits vergeben oder liegt außerhalb von 1 bis 999.':free?.next_number?`Nächste freie Startnummer: ${free.next_number}. Leer lassen für automatische Vergabe.`:'Keine freie Startnummer verfügbar.';
+  }
+  async function loadNumbers(){
+    try{free=await api('/api/drivers/available-start-numbers',undefined,'GET');validateNumber();}
+    catch(error){state.textContent='Freie Nummern konnten nicht geladen werden. Beim Speichern wird die Nummer erneut geprüft.';}
+  }
+  number.addEventListener('input',validateNumber);
+  document.getElementById('suggest-start-number').addEventListener('click',async()=>{await loadNumbers();if(free?.next_number){number.value=free.next_number;validateNumber();}});
+  loadNumbers();
+}

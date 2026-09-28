@@ -14,7 +14,7 @@ from backend.models import CLASSES, Driver, Vehicle, DriverVehicle, Event, Entry
 from backend.schemas import DriverInput, VehicleInput, EventInput, LinkInput, EntryInput, ScoreInput
 from backend.services.hcf import calculate_hcf, vehicle_values, round_hcf, format_hcf
 from backend.schemas import HcfInput
-from backend.services.scoring import save_scores, class_progress, ranked_results, result_groups
+from backend.services.scoring import save_scores, class_progress, ranked_results, result_groups, score_totals
 
 @asynccontextmanager
 async def lifespan(app):
@@ -81,7 +81,17 @@ def drivers(db:Session=Depends(get_db)): return list(db.scalars(select(Driver).o
 
 @app.post('/api/drivers',status_code=201)
 def create_driver(data:DriverInput,db:Session=Depends(get_db)):
-    row=Driver(**data.model_dump()); db.add(row); commit(db); return row
+    number=data.start_number
+    if number is None:
+        # Serialize allocation so simultaneous registrations cannot choose the same gap.
+        db.execute(text('BEGIN IMMEDIATE'))
+        used=set(db.scalars(select(Driver.start_number)))
+        number=next((n for n in range(1,1000) if n not in used),None)
+        if number is None: raise HTTPException(409,'Alle Startnummern von 1 bis 999 sind vergeben.')
+    elif db.scalar(select(Driver.id).where(Driver.start_number==number)):
+        raise HTTPException(409,f'Startnummer {number} ist bereits vergeben. Bitte eine freie Nummer wählen.')
+    row=Driver(start_number=number,**data.model_dump(exclude={'start_number'}))
+    db.add(row); commit(db); return row
 
 @app.get('/api/vehicles')
 def vehicles(db:Session=Depends(get_db)): return list(db.scalars(select(Vehicle).order_by(Vehicle.id)))
@@ -200,8 +210,10 @@ def master_ui(request:Request,tab:str='drivers',q:str='',class_code:str='',
 
 @app.get('/ui/events/{event_id}/{page}')
 def event_ui(event_id:int,page:str,request:Request,db:Session=Depends(get_db)):
-    if page not in ('checkin','scoring','results','result-tables','participants','classes','teams'): raise HTTPException(404,'Seite nicht gefunden')
+    if page not in ('checkin','scoring','results','result-tables','participants','classes','teams','score-overview'): raise HTTPException(404,'Seite nicht gefunden')
     event=get(db,Event,event_id)
+    if page=='score-overview':
+        return render(request,'score_overview.html',event=event,**score_overview(db,event_id,request.query_params.get('class_code','')))
     if page=='result-tables':
         return render(request,'result_tables.html',event=event,result_groups=result_groups(db,event_id),team_results=team_results(db,event_id))
     entries=list(db.scalars(select(Entry).where(Entry.event_id==event_id).order_by(Entry.start_number)))
@@ -209,7 +221,8 @@ def event_ui(event_id:int,page:str,request:Request,db:Session=Depends(get_db)):
                   result_groups=result_groups(db,event_id) if page=='results' else [],
                   participant_groups=participant_groups(db,event_id) if page=='participants' else [],
                   event_classes=list(db.scalars(select(EventClass).where(EventClass.event_id==event_id).order_by(EventClass.code))),
-                  team_results=team_results(db,event_id) if page in ('teams','results') else [])
+                  team_results=team_results(db,event_id) if page in ('teams','results') else [],
+                  **score_overview(db,event_id,request.query_params.get('class_code','')))
 
 @app.get('/print/entries/{entry_id}')
 def card(entry_id:int,request:Request,db:Session=Depends(get_db)):
@@ -419,3 +432,30 @@ def print_teams(event_id:int,request:Request,db:Session=Depends(get_db)):
     if not rows: raise HTTPException(404,'Noch keine Mannschaften genannt.')
     if not all(row['ready'] for row in rows): raise HTTPException(409,'Die zugehörigen Klassen sind noch nicht vollständig erfasst.')
     return render(request,'print_teams.html',event=event,team_results=rows)
+
+
+def score_overview(db,event_id,class_code):
+    query=select(Entry).where(Entry.event_id==event_id)
+    if class_code: query=query.where(Entry.class_code==class_code)
+    rows=[]
+    for entry in db.scalars(query.order_by(Entry.class_code,Entry.start_number)):
+        rows.append(dict(entry=entry,**score_totals(entry)))
+    return dict(selected_class=class_code,score_rows=rows)
+
+
+@app.get('/api/drivers/available-start-numbers')
+def free_start_numbers(db:Session=Depends(get_db)):
+    used=set(db.scalars(select(Driver.start_number)))
+    free=[n for n in range(1,1000) if n not in used]
+    return dict(next_number=free[0] if free else None,free_numbers=free)
+
+
+@app.get('/print/drivers/{driver_id}/vehicles')
+@app.get('/print/drivers/{driver_id}/vehicles/{vehicle_id}')
+def vehicle_cards(driver_id:int,request:Request,vehicle_id:int|None=None,db:Session=Depends(get_db)):
+    driver=get(db,Driver,driver_id)
+    query=select(Vehicle).join(DriverVehicle,DriverVehicle.vehicle_id==Vehicle.id).where(DriverVehicle.driver_id==driver_id).order_by(Vehicle.id)
+    if vehicle_id is not None: query=query.where(Vehicle.id==vehicle_id)
+    vehicles=list(db.scalars(query))
+    if not vehicles: raise HTTPException(404,'Kein zugeordnetes Fahrzeug für diese Startnummer gefunden.')
+    return render(request,'vehicle_cards.html',driver=driver,vehicles=vehicles)

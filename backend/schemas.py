@@ -14,7 +14,7 @@ class Input(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra='forbid')
 
 class DriverInput(Input):
-    start_number: int = Field(gt=0)
+    start_number: int | None = Field(default=None,ge=1,le=999)
     name: str = Field(min_length=1, max_length=150)
     address: str = ''
     email: str = ''
