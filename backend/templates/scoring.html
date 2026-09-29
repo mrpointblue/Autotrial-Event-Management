@@ -15,10 +15,11 @@
 <div id="card-final" hidden><label>Berechnetes Ergebnis<input name="final_points" type="number" min="0" step="0.0001"></label></div>
 <div id="card-sections" hidden><div id="sections"></div></div>
 <p id="card-preview" class="hint" aria-live="polite"></p>
-<label id="driven-summary">Gefahrene Sektionsbefahrungen von <span id="driven-count"></span><input name="driven_sections" type="number" min="0" step="1" placeholder="Anzahl von der Bordkarte"></label>
-<small>Für die 70-%-Regel. Leer speichert einen unvollständigen Zwischenstand. Sonderfälle und die 900-Punkte-Grenze je abgebrochener Sektion vorher auf der Papierkarte prüfen; dafür können die Rohpunktsummen verwendet werden.</small>
+<label id="not-driven-summary" hidden>Nichtbefahren – Anzahl<input name="not_driven" type="number" min="0" step="1" placeholder="Anzahl nicht befahrener Sektionen"></label>
+<p id="attendance-preview" class="hint" aria-live="polite"></p>
+<small>Weniger als 70 % gefahren führt automatisch zu NiW. Bei Rohpunktsummen „Nichtbefahren“ zusätzlich als Anzahl angeben; die zugehörigen Strafpunkte müssen in Fehler2 bereits enthalten sein.</small>
 </div>
-<label>NiW-Begründung (nur bei Wertungsausschluss)<input name="niw_reason" placeholder="z. B. verspätete Abgabe"></label><button>Speichern + nächste Bordkarte</button>
+<label>Weitere NiW-Begründung (optional)<input name="niw_reason" placeholder="z. B. verspätete Abgabe"></label><button>Speichern + nächste Bordkarte</button>
 </form></div></section>
 <div class="scoring-layout"><section class="card"><div id="score-overview" data-event="{{ event.id }}" data-class="{{ selected_class }}">{% include 'score_overview.html' %}</div></section><aside class="card progress-panel">{% include 'progress.html' %}</aside></div>
 {% endblock %}

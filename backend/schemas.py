@@ -53,6 +53,15 @@ class EventInput(Input):
     organizer: str = ''
     section_count: int = Field(default=5,ge=1,le=30)
     rounds: int = Field(default=1,ge=1,le=10)
+    class_sections: dict[str,int] = Field(default_factory=dict)
+
+    @field_validator('class_sections')
+    @classmethod
+    def valid_sections(cls,value):
+        for code,count in value.items():
+            valid_class_code(code)
+            if not 1 <= count <= 300: raise ValueError('Sektionen je Klasse: 1 bis 300.')
+        return value
 
 class LinkInput(Input):
     vehicle_id: int
@@ -95,6 +104,7 @@ class SectionInput(Input):
         return self
 
 class CardSummaryInput(SectionInput):
+    not_driven: int | None = Field(default=None,ge=0,le=300)
     driven_sections: int | None = Field(default=None,ge=0,le=300)
 
 class ScoreInput(Input):
@@ -134,6 +144,7 @@ class EntryEditInput(Input):
 
 
 class EventClassInput(Input):
+    required_sections: int = Field(default=5,ge=1,le=300)
     trophy_count: int | None = Field(default=None,ge=0,le=10000)
     code: str
     section_group: str = Field(default='',max_length=100)

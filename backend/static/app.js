@@ -13,6 +13,11 @@ function values(form) {
   form.querySelectorAll('input[type=checkbox]').forEach(input=>data[input.name]=input.checked);
   form.querySelectorAll('input[type=number]').forEach(input=>{data[input.name]=input.value===''?null:input.value;});
   if(data.class_code==='')data.class_code=null;
+  if(data.trophy_count==='')data.trophy_count=null;
+  if(form.id==='event-form'){
+    data.class_sections={};
+    for(const key of Object.keys(data))if(key.startsWith('class_sections.')){data.class_sections[key.slice(15)]=Number(data[key]);delete data[key];}
+  }
   return data;
 }
 async function submit(form,action) {
@@ -153,10 +158,19 @@ function summaryFromCard(data){
 function setCardMode(){
   const mode=score.elements.input_mode.value;
   for(const id of ['counts','raw','final','sections']){const container=document.getElementById('card-'+id);container.hidden=mode!==id;container.querySelectorAll('input,select').forEach(input=>input.disabled=mode!==id);}
-  document.getElementById('driven-summary').hidden=mode==='sections';
-  score.elements.driven_sections.disabled=mode==='sections';
+  document.getElementById('not-driven-summary').hidden=mode==='sections'||mode==='counts';
+  score.elements.not_driven.disabled=mode==='sections'||mode==='counts';
   if(score.elements.card_status.value==='missing')document.querySelectorAll('#card-values input,#card-values select').forEach(input=>input.disabled=true);
-  updateCardPreview();
+  updateCardPreview();updateAttendance();
+}
+function updateAttendance(){
+  if(!currentCard)return;
+  const expected=currentCard.required_sections,mode=score.elements.input_mode.value;
+  const input=mode==='counts'?document.querySelector('#card-counts [data-penalty="not_driven"]'):score.elements.not_driven;
+  const output=document.getElementById('attendance-preview');output.hidden=mode==='sections';
+  if(input.value===''){output.textContent=`${expected} Sektionen vorgeschrieben. Nichtbefahren noch eintragen.`;return;}
+  const missing=Number(input.value),driven=expected-missing;
+  output.textContent=missing<0||missing>expected?`Nichtbefahren muss zwischen 0 und ${expected} liegen.`:`${driven} von ${expected} Sektionen gefahren (${displayHcf(driven/expected*100)} %). ${driven*10<expected*7?'Automatisch NiW: weniger als 70 %.':'70-%-Regel erfüllt.'}`;
 }
 function updateCardPreview(){
   if(!currentCard)return;
@@ -176,17 +190,18 @@ function updateCardPreview(){
   output.textContent=`Vorschau: Fehler1 ${displayHcf(raw1)} ÷ HCF ${displayHcf(hcf)} + Fehler2 ${displayHcf(raw2)} = ${displayHcf(raw1/hcf+raw2)} Gesamtfehler`;
 }
 if(score){
-  score.addEventListener('input',()=>{scoreDirty=true;updateCardPreview();});
+  score.addEventListener('input',()=>{scoreDirty=true;updateCardPreview();updateAttendance();});
   score.elements.input_mode.addEventListener('change',setCardMode);
   score.elements.card_status.addEventListener('change',()=>{document.getElementById('card-values').hidden=score.elements.card_status.value==='missing';setCardMode();});
 }
 if(lookup)lookup.addEventListener('submit',event=>{event.preventDefault();if(scoreDirty&&!window.confirm('Ungespeicherte Änderungen verwerfen und eine andere Bordkarte öffnen?'))return;submit(lookup,async()=>{
   document.getElementById('score-editor').hidden=true;
   const data=await api(`/api/events/${lookup.dataset.event}/entries/${lookup.elements.start_number.value}`,undefined,'GET');currentCard=data;
-  const e=data.entry;score.elements.entry_id.value=e.id;score.elements.version.value=e.version;score.elements.niw_reason.value=e.niw_reason;
+  const e=data.entry;score.elements.entry_id.value=e.id;score.elements.version.value=e.version;score.elements.niw_reason.value=e.card_summary?.auto_niw?'':e.niw_reason;
   score.elements.card_status.value=(data.sections.length||e.card_summary||e.niw_reason)?e.card_status:'received';
   document.getElementById('card-values').hidden=score.elements.card_status.value==='missing';
   document.getElementById('entry-heading').textContent=`#${e.start_number} · ${e.driver_name} · ${e.class_code} · HCF ${displayHcf(e.hcf)}`;
+  lookup.dataset.count=data.required_sections;
   const summary=summaryFromCard(data),mode=score.elements.input_mode;
   mode.replaceChildren(new Option('Anzahl je Fehlerkategorie','counts'),new Option('Rohpunktsummen Fehler1 / Fehler2','raw'));
   if(summary===null){mode.add(new Option('Bisherige Sektionswerte korrigieren','sections'));renderSections(data);mode.value='sections';}
@@ -194,8 +209,8 @@ if(lookup)lookup.addEventListener('submit',event=>{event.preventDefault();if(sco
   else mode.value=summary.error_counts||summary.error1==null&&summary.error2==null?'counts':'raw';
   categoryInputs(document.getElementById('card-counts'),summary?.error_counts);
   score.elements.raw1.value=summary?.error1??'';score.elements.raw2.value=summary?.error2??'';score.elements.final_points.value=summary?.points??'';
-  score.elements.driven_sections.value=summary?.driven_sections??'';score.elements.driven_sections.max=lookup.dataset.count;
-  document.getElementById('driven-count').textContent=lookup.dataset.count;
+  score.elements.not_driven.value=summary?.not_driven??summary?.error_counts?.not_driven??(summary?.driven_sections!=null?data.required_sections-summary.driven_sections:'');
+  score.elements.not_driven.max=data.required_sections;
   document.getElementById('previous-values').hidden=!data.sections.length;
   setCardMode();scoreDirty=false;document.getElementById('score-editor').hidden=false;document.getElementById('score-editor').scrollIntoView({block:'start'});
   Array.from(document.querySelectorAll('#card-values input')).find(input=>input.getClientRects().length)?.focus({preventScroll:true});
@@ -206,8 +221,8 @@ if(score)score.addEventListener('submit',event=>{event.preventDefault();submit(s
     const mode=score.elements.input_mode.value;
     if(mode==='sections')data.sections=readSections();
     else{
-      const value=score.elements.driven_sections.value;
-      const summary={driven_sections:value===''?null:Number(value)};
+      const value=score.elements.not_driven.value;
+      const summary=mode==='counts'?{}:{not_driven:value===''?null:Number(value)};
       if(mode==='counts'){
         const inputs=[...document.querySelectorAll('#card-counts input')];
         if(inputs.some(i=>i.value===''))throw new Error('Bitte jede Fehlerkategorie ausfüllen; ohne Fehler 0 eingeben.');

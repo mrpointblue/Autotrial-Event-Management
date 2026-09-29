@@ -28,13 +28,11 @@ def test_card_counts_roundtrip_correction_and_print(client):
 def test_summary_validation_pending_niw_and_missing(client):
     event,_,entries=setup(client,count=1,sections=10)
     path=f"/api/entries/{entries[0]['id']}/scores"
-    data=dict(version=1,card_status='received',card_summary=dict(error_counts=counts(),driven_sections=11))
+    data=dict(version=1,card_status='received',card_summary=dict(error_counts=counts(not_driven=11)))
     assert client.put(path,json=data).status_code==422
-    data['card_summary']['driven_sections']=6
-    assert client.put(path,json=data).status_code==422
-    data['card_summary']['driven_sections']=None
+    data['card_summary']=dict(error1='0',error2='0')
     assert client.put(path,json=data).json()['status']=='pending'
-    data['version']=2;data['card_summary']['driven_sections']=6;data['niw_reason']='Weniger als 70 % gefahren'
+    data['version']=2;data['card_summary']=dict(error_counts=counts(not_driven=4))
     assert client.put(path,json=data).json()['status']=='niw'
     data['version']=3;data['card_status']='missing'
     assert client.put(path,json=data).status_code==422

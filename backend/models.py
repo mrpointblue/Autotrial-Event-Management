@@ -116,6 +116,7 @@ class EventClass(Base):
     event_id: Mapped[int] = mapped_column(ForeignKey('events.id'),primary_key=True)
     code: Mapped[str] = mapped_column(String(30),primary_key=True)
     section_group: Mapped[str] = mapped_column(default='')
+    required_sections: Mapped[int] = mapped_column(default=5,server_default='5')
     trophy_count: Mapped[int | None]
 
 class Team(Base):

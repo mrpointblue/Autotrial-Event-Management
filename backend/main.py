@@ -14,14 +14,14 @@ from backend.models import CLASSES, Driver, Vehicle, DriverVehicle, Event, Entry
 from backend.schemas import DriverInput, VehicleInput, EventInput, LinkInput, EntryInput, ScoreInput
 from backend.services.hcf import calculate_hcf, vehicle_values, round_hcf, format_hcf
 from backend.schemas import HcfInput
-from backend.services.scoring import save_scores, class_progress, ranked_results, result_groups, score_totals
+from backend.services.scoring import save_scores, class_progress, ranked_results, result_groups, score_totals, required_sections, recheck_summary
 
 @asynccontextmanager
 async def lifespan(app):
     Base.metadata.create_all(engine)
     with engine.begin() as conn:
         version = conn.exec_driver_sql('PRAGMA user_version').scalar()
-        if version not in (0,1,2,3,4,5): raise RuntimeError('Nicht unterstützte Datenbankversion')
+        if version not in (0,1,2,3,4,5,6): raise RuntimeError('Nicht unterstützte Datenbankversion')
         columns={r[1] for r in conn.exec_driver_sql('PRAGMA table_info(section_results)')}
         for column in ('error1','error2'):
             if column not in columns:
@@ -38,7 +38,12 @@ async def lifespan(app):
                 codes=set(CLASSES) | {r[0] for r in conn.exec_driver_sql('SELECT DISTINCT class_code FROM entries WHERE event_id=?',(event_id,))}
                 for code in codes:
                     conn.exec_driver_sql('INSERT OR IGNORE INTO event_classes (event_id,code,section_group) VALUES (?,?,?)',(event_id,code,''))
-        conn.exec_driver_sql('PRAGMA user_version=5')
+        class_columns={r[1] for r in conn.exec_driver_sql('PRAGMA table_info(event_classes)')}
+        if 'required_sections' not in class_columns:
+            conn.exec_driver_sql('ALTER TABLE event_classes ADD COLUMN required_sections INTEGER NOT NULL DEFAULT 5')
+        if version < 6:
+            conn.exec_driver_sql('UPDATE event_classes SET required_sections=(SELECT section_count*rounds FROM events WHERE events.id=event_classes.event_id)')
+        conn.exec_driver_sql('PRAGMA user_version=6')
     yield
 
 app = FastAPI(title='Autotrial', version='0.1.0', lifespan=lifespan)
@@ -155,8 +160,8 @@ def linked_vehicles(driver_id:int,db:Session=Depends(get_db)):
 
 @app.post('/api/events',status_code=201)
 def create_event(data:EventInput,db:Session=Depends(get_db)):
-    row=Event(**data.model_dump()); db.add(row); db.flush()
-    db.add_all(EventClass(event_id=row.id,code=code) for code in CLASSES)
+    row=Event(**data.model_dump(exclude={'class_sections'})); db.add(row); db.flush()
+    db.add_all(EventClass(event_id=row.id,code=code,required_sections=data.class_sections.get(code,data.section_count*data.rounds)) for code in dict.fromkeys([*CLASSES,*data.class_sections]))
     commit(db); return row
 
 @app.post('/api/events/{event_id}/entries',status_code=201)
@@ -182,12 +187,13 @@ def create_entry(event_id:int,data:EntryInput,db:Session=Depends(get_db)):
 def lookup(event_id:int,start_number:int,db:Session=Depends(get_db)):
     row=db.scalar(select(Entry).where(Entry.event_id==event_id,Entry.start_number==start_number))
     if not row: raise HTTPException(404,'Startnummer ist für diese Veranstaltung nicht genannt.')
-    return dict(entry=jsonable_encoder(row),totals={k:str(v) if v is not None else None for k,v in score_totals(row).items()},sections=[dict(error_counts=r.error_counts,points=str(r.points) if r.points is not None else None,error1=str(r.error1) if r.error1 is not None else None,error2=str(r.error2) if r.error2 is not None else None,driven=r.driven) for r in row.results])
+    return dict(required_sections=required_sections(db,get(db,Event,event_id),row.class_code),entry=jsonable_encoder(row),totals={k:str(v) if v is not None else None for k,v in score_totals(row).items()},sections=[dict(error_counts=r.error_counts,points=str(r.points) if r.points is not None else None,error1=str(r.error1) if r.error1 is not None else None,error2=str(r.error2) if r.error2 is not None else None,driven=r.driven) for r in row.results])
 
 @app.put('/api/entries/{entry_id}/scores')
 def record(entry_id:int,data:ScoreInput,db:Session=Depends(get_db)):
     row=get(db,Entry,entry_id)
-    save_scores(row,get(db,Event,row.event_id),data); commit(db)
+    event=get(db,Event,row.event_id)
+    save_scores(row,event,data,required_sections(db,event,row.class_code)); commit(db)
     return dict(id=row.id,version=row.version,status=row.scoring_status)
 
 @app.get('/api/events/{event_id}/progress')
@@ -196,7 +202,7 @@ def progress(event_id:int,db:Session=Depends(get_db)):
 
 @app.get('/ui/events')
 def events_ui(request:Request,db:Session=Depends(get_db)):
-    return render(request,'events.html',events=list(db.scalars(select(Event).order_by(Event.event_date.desc()))))
+    return render(request,'events.html',classes=CLASSES,events=list(db.scalars(select(Event).order_by(Event.event_date.desc()))))
 
 @app.get('/ui/master-data')
 def master_ui(request:Request,tab:str='drivers',q:str='',class_code:str='',
@@ -268,7 +274,8 @@ def card(entry_id:int,request:Request,db:Session=Depends(get_db)):
     entry=get(db,Entry,entry_id)
     if not entry.technical_approved or not entry.paperwork_approved:
         raise HTTPException(409,'Papierabnahme und technische Abnahme müssen für den Bordkartendruck bestätigt sein.')
-    return render(request,'card.html',entry=entry,event=get(db,Event,entry.event_id))
+    event=get(db,Event,entry.event_id)
+    return render(request,'card.html',entry=entry,event=event,required_sections=required_sections(db,event,entry.class_code))
 
 @app.get('/print/events/{event_id}/{class_code}')
 def results(event_id:int,class_code:str,request:Request,db:Session=Depends(get_db)):
@@ -400,6 +407,14 @@ def add_event_class(event_id:int,data:EventClassInput,db:Session=Depends(get_db)
     get(db,Event,event_id)
     row=db.get(EventClass,(event_id,data.code))
     if row:
+        previous_required=row.required_sections
+        count_changed=row.required_sections!=data.required_sections
+        row.required_sections=data.required_sections
+        if count_changed:
+            for entry in db.scalars(select(Entry).where(Entry.event_id==event_id,Entry.class_code==data.code)):
+                if entry.card_summary: recheck_summary(entry,data.required_sections,previous_required)
+                elif entry.results and entry.scoring_status!='niw': entry.scoring_status='pending'
+                entry.version+=1
         row.section_group=data.section_group
         row.trophy_count=data.trophy_count
     else: db.add(EventClass(event_id=event_id,**data.model_dump()))

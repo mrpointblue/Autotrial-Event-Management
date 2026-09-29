@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from fastapi import HTTPException
-from backend.models import Vehicle, EntryChange
+from backend.models import Vehicle, EntryChange, Event
+from backend.services.scoring import required_sections, recheck_summary
 from backend.services.hcf import round_hcf
 
 
@@ -9,6 +10,8 @@ def edit_entry(db,entry,data):
         raise HTTPException(409,'Nennung inzwischen geändert. Bitte neu laden.')
     try: hcf=round_hcf(data.hcf)
     except ValueError as error: raise HTTPException(422,str(error))
+    previous_required=required_sections(db,db.get(Event,entry.event_id),entry.class_code)
+    class_changed=data.class_code!=entry.class_code
     vehicle_changed=data.vehicle_id != entry.vehicle_id
     if vehicle_changed:
         vehicle=db.get(Vehicle,data.vehicle_id)
@@ -37,6 +40,9 @@ def edit_entry(db,entry,data):
     # Keep the entered figures for comparison, but block result printing until re-saved.
     if (vehicle_changed or hcf_changed) and has_results and entry.scoring_status!='niw':
         entry.scoring_status='pending'
+    if class_changed and entry.card_summary:
+        recheck_summary(entry,required_sections(db,db.get(Event,entry.event_id),entry.class_code),previous_required)
+        if (vehicle_changed or hcf_changed) and entry.scoring_status!='niw': entry.scoring_status='pending'
     entry.version+=1
     db.add(EntryChange(entry_id=entry.id,changed_at=datetime.now(timezone.utc).isoformat(),
                        reason=data.reason,before=before,after=state()))

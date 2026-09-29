@@ -12,23 +12,53 @@ def raw_values(value):
             Decimal((c.band+c.exit+c.missed_gate+c.assistance)*80+(c.not_driven+c.seatbelt+c.helmet)*900))
 
 
-def save_scores(entry, event, data):
+def required_sections(db,event,code):
+    config=db.get(EventClass,(event.id,code))
+    return config.required_sections if config else event.section_count*event.rounds
+
+
+def recheck_summary(entry,expected,previous_expected=None):
+    if not entry.card_summary: return
+    summary=dict(entry.card_summary)
+    counts=summary.get('error_counts')
+    missing=counts.get('not_driven') if counts is not None else summary.get('not_driven')
+    if missing is None and summary.get('driven_sections') is not None:
+        missing=(previous_expected if previous_expected is not None else expected)-summary['driven_sections']
+    if missing is None: return
+    was_auto=summary.get('auto_niw',False)
+    reason='' if was_auto else entry.niw_reason
+    driven=expected-missing
+    complete=(summary.get('points') is not None or (summary.get('error1') is not None and summary.get('error2') is not None)) and driven>=0
+    auto=not reason and complete and driven*10 < expected*7
+    summary.update(driven_sections=max(0,driven),not_driven=missing,auto_niw=auto)
+    entry.card_summary=summary
+    entry.niw_reason=reason or (f'Automatisch NiW: {driven} von {expected} Sektionen gefahren (weniger als 70 %).' if auto else '')
+    entry.scoring_status='niw' if entry.niw_reason else ('complete' if complete and entry.card_status=='received' else 'pending')
+
+
+def save_scores(entry, event, data, expected=None):
     if entry.version != data.version:
         raise HTTPException(409, 'Die Bordkarte wurde inzwischen geändert. Bitte neu laden.')
-    expected = event.section_count * event.rounds
+    expected = expected if expected is not None else event.section_count * event.rounds
     if data.card_summary is not None:
         value=data.card_summary
         if data.card_status != 'received':
             raise HTTPException(422,'Bordkartensummen benötigen eine eingegangene Bordkarte.')
-        if value.driven_sections is not None and value.driven_sections > expected:
-            raise HTTPException(422,f'Es gibt nur {expected} vorgeschriebene Sektionsbefahrungen.')
+        missing=value.error_counts.not_driven if value.error_counts is not None else value.not_driven
+        # Accept historical API payloads, but new forms submit Nichtbefahren only.
+        if missing is None and value.driven_sections is not None: missing=expected-value.driven_sections
+        if missing is not None and not 0 <= missing <= expected:
+            raise HTTPException(422,f'Nichtbefahren muss zwischen 0 und {expected} liegen.')
         reason=data.niw_reason.strip()
+        if entry.card_summary and entry.card_summary.get('auto_niw') and reason==entry.niw_reason: reason=''
         error1,error2=raw_values(value)
-        complete=(value.points is not None or (error1 is not None and error2 is not None)) and value.driven_sections is not None
-        if complete and not reason and value.driven_sections*10 < expected*7:
-            raise HTTPException(422,'Weniger als 70 % gefahren: NiW mit Begründung bestätigen.')
+        complete=(value.points is not None or (error1 is not None and error2 is not None)) and missing is not None
+        driven=expected-missing if missing is not None else None
+        auto=complete and not reason and driven*10 < expected*7
+        if auto: reason=f'Automatisch NiW: {driven} von {expected} Sektionen gefahren (weniger als 70 %).'
         entry.card_summary=value.model_dump(mode='json',exclude={'driven'})
-        entry.card_summary.update(error1=str(error1) if error1 is not None else None,error2=str(error2) if error2 is not None else None)
+        entry.card_summary.update(error1=str(error1) if error1 is not None else None,error2=str(error2) if error2 is not None else None,
+                                  not_driven=missing,driven_sections=driven,auto_niw=bool(auto))
         entry.results.clear()
         entry.card_status=data.card_status
         entry.niw_reason=reason
