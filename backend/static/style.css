@@ -13,3 +13,5 @@
 .penalty-fields label{display:grid;grid-template-rows:3.5em 3em auto;align-content:end;font-size:13px;overflow-wrap:anywhere;hyphens:auto}.penalty-fields small{align-self:end}.card-options{display:flex;gap:20px;flex-wrap:wrap}.card-options label{flex:1;min-width:220px;max-width:420px}.card-options select{display:block}#class-strip{position:sticky;top:0;z-index:5;display:flex;gap:8px;overflow-x:auto;background:#f3f4f6;padding:8px 0;margin-bottom:12px}#class-strip a{white-space:nowrap;padding:8px 12px;background:#e0ecff;border-radius:6px;text-decoration:none;font-weight:bold}
 
 #score-editor{scroll-margin-top:60px}
+
+.danger-button{background:#b91c1c;margin:0 0 12px;padding:8px 12px;font-size:14px}

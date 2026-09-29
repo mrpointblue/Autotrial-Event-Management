@@ -20,7 +20,7 @@ async function submit(form,action) {
   try{await action();}catch(error){show(error.message,true);}finally{button.disabled=false;}
 }
 document.querySelectorAll('form[data-api]').forEach(form=>form.addEventListener('submit',event=>{
-  event.preventDefault(); submit(form,async()=>{await api(form.dataset.api,values(form),form.dataset.method||'POST');location.assign(form.dataset.redirect||location.href);});
+  event.preventDefault(); if(form.dataset.confirm&&!window.confirm(form.dataset.confirm))return;submit(form,async()=>{await api(form.dataset.api,values(form),form.dataset.method||'POST');location.assign(form.dataset.redirect||location.href);});
 }));
 const link=document.getElementById('link-form');
 if(link) link.addEventListener('submit',event=>{event.preventDefault();submit(link,async()=>{const data=values(link);const id=data.driver_id;delete data.driver_id;await api(`/api/drivers/${id}/vehicles`,data,'PUT');location.assign('/ui/master-data?tab='+(link.dataset.returnTab||'drivers'));});});

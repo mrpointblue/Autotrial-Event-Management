@@ -5,7 +5,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, update, text
+from sqlalchemy import select, update, delete, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
@@ -128,6 +128,16 @@ def edit_vehicle(vehicle_id:int,data:VehicleInput,db:Session=Depends(get_db)):
     for key,value in values.items(): setattr(row,key,value)
     commit(db); return row
 
+@app.delete('/api/vehicles/{vehicle_id}')
+def delete_vehicle(vehicle_id:int,db:Session=Depends(get_db)):
+    db.execute(text('BEGIN IMMEDIATE'))
+    row=get(db,Vehicle,vehicle_id)
+    if db.scalar(select(Entry.id).where(Entry.vehicle_id==vehicle_id).limit(1)):
+        raise HTTPException(409,'Das Fahrzeug wird in einer Nennung verwendet und kann nicht gelöscht werden. Bearbeiten ist weiterhin möglich.')
+    db.execute(delete(DriverVehicle).where(DriverVehicle.vehicle_id==vehicle_id))
+    db.delete(row);commit(db)
+    return dict(deleted=True)
+
 @app.put('/api/drivers/{driver_id}/vehicles')
 def link_vehicle(driver_id:int,data:LinkInput,db:Session=Depends(get_db)):
     get(db,Driver,driver_id); get(db,Vehicle,data.vehicle_id)
@@ -196,8 +206,9 @@ def master_ui(request:Request,tab:str='drivers',q:str='',class_code:str='',
     if tab == 'classes':
         return render(request,'classes.html',tab='classes',event=active,
                       event_classes=list(db.scalars(select(EventClass).where(EventClass.event_id==active.id).order_by(EventClass.code))) if active else [])
-    if tab not in ('drivers','vehicles','new-driver','new-vehicle','assign'):
+    if tab not in ('drivers','vehicles','new-driver','new-vehicle','edit-vehicle','assign'):
         raise HTTPException(404,'Ansicht nicht gefunden')
+    editing_vehicle=get(db,Vehicle,vehicle_id) if tab=='edit-vehicle' else None
     if tab=='assign' and vehicle_id is not None: get(db,Vehicle,vehicle_id)
     all_drivers, all_vehicles = drivers(db), vehicles(db)
     driver_map = {d.id:d for d in all_drivers}
@@ -223,7 +234,7 @@ def master_ui(request:Request,tab:str='drivers',q:str='',class_code:str='',
     page_number = min(page_number,pages)
     rows = rows[(page_number-1)*25:page_number*25]
     return render(request,'master.html',drivers=all_drivers,vehicles=all_vehicles,classes=available_classes(db),
-                  event=active,entry_by_driver={e.driver_id:e for e in db.scalars(select(Entry).where(Entry.event_id==active.id))} if active else {},assigned_vehicle_id=vehicle_id,tab=tab,q=q,class_code=class_code,rows=rows,count=count,pages=pages,page_number=page_number,
+                  editing_vehicle=editing_vehicle,event=active,entry_by_driver={e.driver_id:e for e in db.scalars(select(Entry).where(Entry.event_id==active.id))} if active else {},assigned_vehicle_id=vehicle_id,tab=tab,q=q,class_code=class_code,rows=rows,count=count,pages=pages,page_number=page_number,
                   by_driver=by_driver,by_vehicle=by_vehicle,
                   previous_url=str(request.url.include_query_params(page_number=page_number-1)),
                   next_url=str(request.url.include_query_params(page_number=page_number+1)))
