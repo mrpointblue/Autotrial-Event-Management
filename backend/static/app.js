@@ -16,7 +16,7 @@ function values(form) {
   return data;
 }
 async function submit(form,action) {
-  const button=form.querySelector('button'); button.disabled=true;
+  const button=form.querySelector('button[type=submit],button:not([type])'); button.disabled=true;
   try{await action();}catch(error){show(error.message,true);}finally{button.disabled=false;}
 }
 document.querySelectorAll('form[data-api]').forEach(form=>form.addEventListener('submit',event=>{
@@ -25,15 +25,32 @@ document.querySelectorAll('form[data-api]').forEach(form=>form.addEventListener(
 const link=document.getElementById('link-form');
 if(link) link.addEventListener('submit',event=>{event.preventDefault();submit(link,async()=>{const data=values(link);const id=data.driver_id;delete data.driver_id;await api(`/api/drivers/${id}/vehicles`,data,'PUT');location.assign('/ui/master-data?tab='+(link.dataset.returnTab||'drivers'));});});
 const driver=document.getElementById('entry-driver');
-if(driver) driver.addEventListener('change',async()=>{
-  const select=document.getElementById('entry-vehicle');select.replaceChildren(new Option('Fahrzeug auswählen',''));
-  if(!driver.value)return;
-  const chosen=driver.value;
-  try{const rows=await api(`/api/drivers/${chosen}/vehicles`,undefined,'GET');if(driver.value!==chosen)return;
-    rows.forEach(({vehicle:v,is_default})=>select.add(new Option(`F${v.id} · ${v.manufacturer} ${v.model} · ${v.class_code} · HCF ${displayHcf(v.hcf)}${is_default?' (Standard)':''}`,v.id,is_default,is_default)));
-    if(!rows.length)show('Bitte zuerst unter Stammdaten ein Fahrzeug zuordnen.',true);
-  }catch(error){show(error.message,true);}
-});
+if(driver){
+  const select=document.getElementById('entry-vehicle'),search=document.getElementById('entry-vehicle-search'),info=document.getElementById('entry-vehicle-info'),useDefault=document.getElementById('entry-use-default');
+  const vehicles=Array.from(select.options).filter(o=>o.value).map(o=>({id:o.value,label:o.textContent}));
+  let defaultId='',requestId=0;
+  function filterVehicles(selected=select.value){
+    const terms=search.value.toLocaleLowerCase('de-DE').trim().split(/\s+/).filter(Boolean);
+    const matches=vehicles.filter(v=>terms.every(t=>v.label.toLocaleLowerCase('de-DE').includes(t)));
+    select.replaceChildren(new Option(matches.length?'Fahrzeug auswählen':'Keine passenden Fahrzeuge',''));
+    matches.forEach(v=>select.add(new Option(v.label+(v.id===defaultId?' · Standardfahrzeug':''),v.id)));
+    select.value=matches.some(v=>v.id===selected)?selected:'';
+    info.textContent=`${matches.length} Fahrzeuge gefunden. ${defaultId?'Standardfahrzeug: '+vehicles.find(v=>v.id===defaultId)?.label:'Kein Standardfahrzeug hinterlegt.'} Die Auswahl gilt nur für diese Nennung.`;
+  }
+  search.addEventListener('input',()=>filterVehicles());
+  useDefault.addEventListener('click',()=>{search.value='';filterVehicles(defaultId);});
+  driver.addEventListener('change',async()=>{
+    const request=++requestId,chosen=driver.value;
+    defaultId='';search.value='';search.disabled=true;select.disabled=true;useDefault.hidden=true;
+    select.replaceChildren(new Option(chosen?'Standardfahrzeug wird geladen …':'Zuerst Fahrer wählen',''));
+    if(!chosen){info.textContent='Zuerst Fahrer auswählen.';return;}
+    try{
+      const rows=await api(`/api/drivers/${chosen}/vehicles`,undefined,'GET');if(request!==requestId)return;
+      defaultId=String(rows.find(r=>r.is_default)?.vehicle.id??'');
+      search.disabled=false;select.disabled=false;useDefault.hidden=!defaultId;filterVehicles(defaultId);
+    }catch(error){if(request!==requestId)return;search.disabled=false;select.disabled=false;filterVehicles('');show('Standardfahrzeug konnte nicht geladen werden. Bitte Fahrzeug manuell auswählen.',true);}
+  });
+}
 const progress=document.getElementById('progress');
 async function refreshProgress(){
   if(!progress)return;
@@ -263,8 +280,8 @@ const entryEdit=document.getElementById('entry-edit-form');
 if(entryEdit){
   entryEdit.elements.vehicle_id.addEventListener('change',()=>{
     const option=entryEdit.elements.vehicle_id.selectedOptions[0];
-    entryEdit.elements.class_code.value=option.dataset.class;
-    entryEdit.elements.hcf.value=option.dataset.hcf;
+    // Vehicle selection never determines the event class.
+    if(option?.value)entryEdit.elements.hcf.value=option.dataset.hcf;
   });
 }
 
@@ -352,4 +369,17 @@ if(link){
     }
     input.addEventListener('input',filter);select.addEventListener('change',assignmentPreview);filter();
   }
+}
+
+const editVehicleSearch=document.getElementById('edit-vehicle-search');
+if(editVehicleSearch&&entryEdit){
+  const select=entryEdit.elements.vehicle_id,options=Array.from(select.options).map(o=>o.cloneNode(true));
+  editVehicleSearch.addEventListener('input',()=>{
+    const selected=select.value,terms=editVehicleSearch.value.toLocaleLowerCase('de-DE').trim().split(/\s+/).filter(Boolean);
+    const matches=options.filter(o=>terms.every(t=>o.textContent.toLocaleLowerCase('de-DE').includes(t)));
+    select.replaceChildren(new Option(matches.length?'Fahrzeug auswählen':'Keine passenden Fahrzeuge',''));
+    matches.forEach(o=>select.append(o.cloneNode(true)));
+    select.value=matches.some(o=>o.value===selected)?selected:'';
+    document.getElementById('edit-vehicle-info').textContent=`${matches.length} Fahrzeuge gefunden. Die Auswahl gilt nur für diese Nennung.`;
+  });
 }

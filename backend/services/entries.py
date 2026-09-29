@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from fastapi import HTTPException
-from backend.models import DriverVehicle, Vehicle, EntryChange
+from backend.models import Vehicle, EntryChange
 from backend.services.hcf import round_hcf
 
 
@@ -11,9 +11,8 @@ def edit_entry(db,entry,data):
     except ValueError as error: raise HTTPException(422,str(error))
     vehicle_changed=data.vehicle_id != entry.vehicle_id
     if vehicle_changed:
-        if not db.get(DriverVehicle,(entry.driver_id,data.vehicle_id)):
-            raise HTTPException(422,'Neues Fahrzeug zuerst dem Fahrer in der Datenbank zuordnen.')
         vehicle=db.get(Vehicle,data.vehicle_id)
+        if vehicle is None: raise HTTPException(422,'Fahrzeug nicht gefunden.')
         snapshot={c.name:str(vehicle.hcf) if c.name=='hcf' else getattr(vehicle,c.name) for c in Vehicle.__table__.columns}
     else:
         # Retain historical technical data; never refresh from a changed master record.

@@ -155,10 +155,8 @@ def create_entry(event_id:int,data:EntryInput,db:Session=Depends(get_db)):
     vehicle_id=data.vehicle_id
     if vehicle_id is None:
         link=db.scalar(select(DriverVehicle).where(DriverVehicle.driver_id==driver.id,DriverVehicle.is_default==True))
-        if not link: raise HTTPException(422,'Bitte ein zugeordnetes Fahrzeug auswählen.')
+        if not link: raise HTTPException(422,'Kein Standardfahrzeug hinterlegt. Bitte ein Fahrzeug auswählen.')
         vehicle_id=link.vehicle_id
-    if not db.get(DriverVehicle,(driver.id,vehicle_id)):
-        raise HTTPException(422,'Fahrzeug zuerst der Startnummer zuordnen.')
     vehicle=get(db,Vehicle,vehicle_id)
     try: entry_hcf = round_hcf(vehicle.hcf)
     except ValueError as error: raise HTTPException(422,str(error))
@@ -239,7 +237,7 @@ def event_ui(event_id:int,page:str,request:Request,db:Session=Depends(get_db)):
     if page=='result-tables':
         return render(request,'result_tables.html',event=event,result_groups=result_groups(db,event_id),team_results=team_results(db,event_id))
     entries=list(db.scalars(select(Entry).where(Entry.event_id==event_id).order_by(Entry.start_number)))
-    return render(request,page+'.html',event=event,drivers=drivers(db),entries=entries,progress=class_progress(db,event_id),page=page,
+    return render(request,page+'.html',event=event,drivers=drivers(db),vehicles=vehicles(db) if page=='checkin' else [],entries=entries,progress=class_progress(db,event_id),page=page,
                   result_groups=result_groups(db,event_id) if page=='results' else [],
                   participant_groups=participant_groups(db,event_id) if page=='participants' else [],
                   event_classes=list(db.scalars(select(EventClass).where(EventClass.event_id==event_id).order_by(EventClass.code))),
@@ -291,12 +289,11 @@ from backend.services.entries import edit_entry
 @app.get('/ui/entries/{entry_id}/edit')
 def entry_edit_ui(entry_id:int,request:Request,db:Session=Depends(get_db)):
     entry=get(db,Entry,entry_id)
-    choices=[dict(id=entry.vehicle_id,label=entry.vehicle_snapshot['manufacturer']+' '+entry.vehicle_snapshot['model'],
+    choices=[dict(id=entry.vehicle_id,label=entry.vehicle_snapshot['manufacturer']+' '+entry.vehicle_snapshot['model']+' · '+(entry.vehicle_snapshot.get('plate') or 'ohne Kennzeichen'),
                   class_code=entry.class_code,hcf=format_hcf(entry.hcf).replace(',','.'))]
-    for item in linked_vehicles(entry.driver_id,db):
-        v=item['vehicle']
-        if v['id']!=entry.vehicle_id:
-            choices.append(dict(id=v['id'],label=v['manufacturer']+' '+v['model'],class_code=v['class_code'],hcf=format_hcf(v['hcf']).replace(',','.')))
+    for v in vehicles(db):
+        if v.id!=entry.vehicle_id:
+            choices.append(dict(id=v.id,label=v.manufacturer+' '+v.model+' · '+(v.plate or 'ohne Kennzeichen'),class_code=v.class_code,hcf=format_hcf(v.hcf).replace(',','.')))
     changes=list(db.scalars(select(EntryChange).where(EntryChange.entry_id==entry.id).order_by(EntryChange.id.desc())))
     return render(request,'entry_edit.html',event=get(db,Event,entry.event_id),entry=entry,
                   choices=choices,classes=available_classes(db,entry.event_id),changes=changes,page='checkin')
