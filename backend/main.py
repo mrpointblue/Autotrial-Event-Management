@@ -191,9 +191,9 @@ def events_ui(request:Request,db:Session=Depends(get_db)):
 @app.get('/ui/master-data')
 def master_ui(request:Request,tab:str='drivers',q:str='',class_code:str='',
               page_number:int=Query(default=1,ge=1),vehicle_id:int|None=Query(default=None,ge=1),db:Session=Depends(get_db)):
+    saved=request.cookies.get('active_event','')
+    active=db.get(Event,int(saved)) if saved.isdigit() and len(saved)<=18 else None
     if tab == 'classes':
-        saved=request.cookies.get('active_event','')
-        active=db.get(Event,int(saved)) if saved.isdigit() and len(saved)<=18 else None
         return render(request,'classes.html',tab='classes',event=active,
                       event_classes=list(db.scalars(select(EventClass).where(EventClass.event_id==active.id).order_by(EventClass.code))) if active else [])
     if tab not in ('drivers','vehicles','new-driver','new-vehicle','assign'):
@@ -223,13 +223,13 @@ def master_ui(request:Request,tab:str='drivers',q:str='',class_code:str='',
     page_number = min(page_number,pages)
     rows = rows[(page_number-1)*25:page_number*25]
     return render(request,'master.html',drivers=all_drivers,vehicles=all_vehicles,classes=available_classes(db),
-                  assigned_vehicle_id=vehicle_id,tab=tab,q=q,class_code=class_code,rows=rows,count=count,pages=pages,page_number=page_number,
+                  event=active,entry_by_driver={e.driver_id:e for e in db.scalars(select(Entry).where(Entry.event_id==active.id))} if active else {},assigned_vehicle_id=vehicle_id,tab=tab,q=q,class_code=class_code,rows=rows,count=count,pages=pages,page_number=page_number,
                   by_driver=by_driver,by_vehicle=by_vehicle,
                   previous_url=str(request.url.include_query_params(page_number=page_number-1)),
                   next_url=str(request.url.include_query_params(page_number=page_number+1)))
 
 @app.get('/ui/events/{event_id}/{page}')
-def event_ui(event_id:int,page:str,request:Request,db:Session=Depends(get_db)):
+def event_ui(event_id:int,page:str,request:Request,driver_id:int|None=Query(default=None,ge=1),db:Session=Depends(get_db)):
     if page not in ('checkin','scoring','results','result-tables','participants','classes','teams','score-overview'): raise HTTPException(404,'Seite nicht gefunden')
     event=get(db,Event,event_id)
     if page=='score-overview':
@@ -237,7 +237,15 @@ def event_ui(event_id:int,page:str,request:Request,db:Session=Depends(get_db)):
     if page=='result-tables':
         return render(request,'result_tables.html',event=event,result_groups=result_groups(db,event_id),team_results=team_results(db,event_id))
     entries=list(db.scalars(select(Entry).where(Entry.event_id==event_id).order_by(Entry.start_number)))
-    return render(request,page+'.html',event=event,drivers=drivers(db),vehicles=vehicles(db) if page=='checkin' else [],entries=entries,progress=class_progress(db,event_id),page=page,
+    available_drivers=drivers(db)
+    if page=='checkin':
+        entered={e.driver_id:e for e in entries}
+        if driver_id is not None:
+            get(db,Driver,driver_id)
+            if driver_id in entered:
+                return RedirectResponse(f'/ui/entries/{entered[driver_id].id}/edit',status_code=303)
+        available_drivers=[d for d in available_drivers if d.id not in entered]
+    return render(request,page+'.html',event=event,drivers=available_drivers,selected_driver_id=driver_id,vehicles=vehicles(db) if page=='checkin' else [],entries=entries,progress=class_progress(db,event_id),page=page,
                   result_groups=result_groups(db,event_id) if page=='results' else [],
                   participant_groups=participant_groups(db,event_id) if page=='participants' else [],
                   event_classes=list(db.scalars(select(EventClass).where(EventClass.event_id==event_id).order_by(EventClass.code))),

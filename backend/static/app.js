@@ -51,6 +51,7 @@ if(driver){
     }catch(error){if(request!==requestId)return;search.disabled=false;select.disabled=false;filterVehicles('');show('Standardfahrzeug konnte nicht geladen werden. Bitte Fahrzeug manuell auswählen.',true);}
   });
 }
+if(driver?.value)driver.dispatchEvent(new Event('change'));
 const progress=document.getElementById('progress');
 async function refreshProgress(){
   if(!progress)return;

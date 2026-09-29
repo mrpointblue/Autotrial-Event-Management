@@ -42,7 +42,8 @@ def test_checkin_search_and_vehicle_selection_present(client):
     assert 'id="driver-search-info"' in html
     assert 'Startnummer, Nachname oder Vorname' in html
     assert 'id="entry-driver"' in html and 'id="entry-vehicle"' in html
-    assert '#100 · Fahrer 0' in html
+    assert '#100 · Fahrer 0' not in html
+    assert '0 noch nicht genannte Fahrer' in html
 
 
 def test_assignment_search_and_vehicle_list_shortcut(client):
