@@ -77,6 +77,7 @@ class Entry(Base):
     scoring_status: Mapped[str] = mapped_column(default='pending')
     niw_reason: Mapped[str] = mapped_column(default='')
     version: Mapped[int] = mapped_column(default=1)
+    card_summary: Mapped[dict | None] = mapped_column(JSON)
     results: Mapped[list['SectionResult']] = relationship(cascade='all, delete-orphan', order_by='SectionResult.ordinal')
     __mapper_args__ = {'version_id_col': version, 'version_id_generator': False}
     __table_args__ = (

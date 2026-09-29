@@ -21,12 +21,14 @@ async def lifespan(app):
     Base.metadata.create_all(engine)
     with engine.begin() as conn:
         version = conn.exec_driver_sql('PRAGMA user_version').scalar()
-        if version not in (0,1,2,3,4): raise RuntimeError('Nicht unterstützte Datenbankversion')
+        if version not in (0,1,2,3,4,5): raise RuntimeError('Nicht unterstützte Datenbankversion')
         columns={r[1] for r in conn.exec_driver_sql('PRAGMA table_info(section_results)')}
         for column in ('error1','error2'):
             if column not in columns:
                 conn.exec_driver_sql(f'ALTER TABLE section_results ADD COLUMN {column} NUMERIC(14,2) CHECK ({column} IS NULL OR {column} >= 0)')
         entry_columns={r[1] for r in conn.exec_driver_sql('PRAGMA table_info(entries)')}
+        if 'card_summary' not in entry_columns:
+            conn.exec_driver_sql('ALTER TABLE entries ADD COLUMN card_summary JSON')
         if 'driver_snapshot' not in entry_columns:
             conn.exec_driver_sql('ALTER TABLE entries ADD COLUMN driver_snapshot JSON')
         if 'error_counts' not in columns:
@@ -36,7 +38,7 @@ async def lifespan(app):
                 codes=set(CLASSES) | {r[0] for r in conn.exec_driver_sql('SELECT DISTINCT class_code FROM entries WHERE event_id=?',(event_id,))}
                 for code in codes:
                     conn.exec_driver_sql('INSERT OR IGNORE INTO event_classes (event_id,code,section_group) VALUES (?,?,?)',(event_id,code,''))
-        conn.exec_driver_sql('PRAGMA user_version=4')
+        conn.exec_driver_sql('PRAGMA user_version=5')
     yield
 
 app = FastAPI(title='Autotrial', version='0.1.0', lifespan=lifespan)
@@ -172,7 +174,7 @@ def create_entry(event_id:int,data:EntryInput,db:Session=Depends(get_db)):
 def lookup(event_id:int,start_number:int,db:Session=Depends(get_db)):
     row=db.scalar(select(Entry).where(Entry.event_id==event_id,Entry.start_number==start_number))
     if not row: raise HTTPException(404,'Startnummer ist für diese Veranstaltung nicht genannt.')
-    return dict(entry=jsonable_encoder(row),sections=[dict(error_counts=r.error_counts,points=str(r.points) if r.points is not None else None,error1=str(r.error1) if r.error1 is not None else None,error2=str(r.error2) if r.error2 is not None else None,driven=r.driven) for r in row.results])
+    return dict(entry=jsonable_encoder(row),totals={k:str(v) if v is not None else None for k,v in score_totals(row).items()},sections=[dict(error_counts=r.error_counts,points=str(r.points) if r.points is not None else None,error1=str(r.error1) if r.error1 is not None else None,error2=str(r.error2) if r.error2 is not None else None,driven=r.driven) for r in row.results])
 
 @app.put('/api/entries/{entry_id}/scores')
 def record(entry_id:int,data:ScoreInput,db:Session=Depends(get_db)):
@@ -190,7 +192,7 @@ def events_ui(request:Request,db:Session=Depends(get_db)):
 
 @app.get('/ui/master-data')
 def master_ui(request:Request,tab:str='drivers',q:str='',class_code:str='',
-              page_number:int=Query(default=1,ge=1),db:Session=Depends(get_db)):
+              page_number:int=Query(default=1,ge=1),vehicle_id:int|None=Query(default=None,ge=1),db:Session=Depends(get_db)):
     if tab == 'classes':
         saved=request.cookies.get('active_event','')
         active=db.get(Event,int(saved)) if saved.isdigit() and len(saved)<=18 else None
@@ -198,6 +200,7 @@ def master_ui(request:Request,tab:str='drivers',q:str='',class_code:str='',
                       event_classes=list(db.scalars(select(EventClass).where(EventClass.event_id==active.id).order_by(EventClass.code))) if active else [])
     if tab not in ('drivers','vehicles','new-driver','new-vehicle','assign'):
         raise HTTPException(404,'Ansicht nicht gefunden')
+    if tab=='assign' and vehicle_id is not None: get(db,Vehicle,vehicle_id)
     all_drivers, all_vehicles = drivers(db), vehicles(db)
     driver_map = {d.id:d for d in all_drivers}
     vehicle_map = {v.id:v for v in all_vehicles}
@@ -222,7 +225,7 @@ def master_ui(request:Request,tab:str='drivers',q:str='',class_code:str='',
     page_number = min(page_number,pages)
     rows = rows[(page_number-1)*25:page_number*25]
     return render(request,'master.html',drivers=all_drivers,vehicles=all_vehicles,classes=available_classes(db),
-                  tab=tab,q=q,class_code=class_code,rows=rows,count=count,pages=pages,page_number=page_number,
+                  assigned_vehicle_id=vehicle_id,tab=tab,q=q,class_code=class_code,rows=rows,count=count,pages=pages,page_number=page_number,
                   by_driver=by_driver,by_vehicle=by_vehicle,
                   previous_url=str(request.url.include_query_params(page_number=page_number-1)),
                   next_url=str(request.url.include_query_params(page_number=page_number+1)))

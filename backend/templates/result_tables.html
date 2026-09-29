@@ -1,7 +1,7 @@
 {% if result_groups %}
 <section class="card"><h2>Ergebnisse drucken</h2>
 {% if result_groups|selectattr('ready','equalto',false)|list|length == 0 %}
-<a class="button" target="_blank" href="/print/events/{{ event.id }}/all">Siegerehrung · alle Klassen</a>
+<a class="button" target="_blank" href="/print/events/{{ event.id }}/all">Siegerehrung · alle Klassen, ein Blatt pro Klasse</a>
 <a class="button secondary-button" target="_blank" href="/print/events/{{ event.id }}/adac">ADAC · Gesamtauswertung</a>
 <a class="button secondary-button" href="/export/events/{{ event.id }}/adac.csv">ADAC · CSV herunterladen</a>
 <p>Einzelne Klassen unten drucken. Siegerehrung: jede Klasse auf einer eigenen Seite. ADAC: fortlaufende Gesamtliste nach Klassen.</p>

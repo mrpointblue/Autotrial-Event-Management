@@ -77,6 +77,10 @@ class ErrorCounts(Input):
     missed_gate: int = Field(ge=0,le=100000)
     not_driven: int = Field(ge=0,le=100000)
 
+    assistance: int = Field(ge=0,le=100000,default=0)
+    seatbelt: int = Field(ge=0,le=100000,default=0)
+    helmet: int = Field(ge=0,le=100000,default=0)
+
 class SectionInput(Input):
     error_counts: ErrorCounts | None = None
     points: Decimal | None = Field(default=None,ge=0,max_digits=14,decimal_places=4,allow_inf_nan=False)
@@ -90,11 +94,21 @@ class SectionInput(Input):
             raise ValueError('Gesamtwert und getrennte Fehler dürfen nicht gleichzeitig angegeben werden.')
         return self
 
+class CardSummaryInput(SectionInput):
+    driven_sections: int | None = Field(default=None,ge=0,le=300)
+
 class ScoreInput(Input):
     version: int = Field(ge=1)
     card_status: Literal['missing','received']
     niw_reason: str = ''
     sections: list[SectionInput] = Field(default_factory=list,max_length=300)
+    card_summary: CardSummaryInput | None = None
+
+    @model_validator(mode='after')
+    def one_score_source(self):
+        if self.card_summary is not None and self.sections:
+            raise ValueError('Bordkartensummen und Sektionswerte nicht gleichzeitig eingeben.')
+        return self
 
 class CheckinInput(Input):
     version: int = Field(ge=1)

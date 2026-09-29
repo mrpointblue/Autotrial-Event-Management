@@ -18,7 +18,7 @@ def edit_entry(db,entry,data):
     else:
         # Retain historical technical data; never refresh from a changed master record.
         snapshot=dict(entry.vehicle_snapshot)
-    has_results=bool(entry.results)
+    has_results=bool(entry.results) or entry.card_summary is not None
     hcf_changed=hcf != entry.hcf
     fields=('vehicle_id','vehicle_snapshot','class_code','hcf','codriver','paid','technical_approved','paperwork_approved','scoring_status','version')
     def state():

@@ -43,3 +43,15 @@ def test_checkin_search_and_vehicle_selection_present(client):
     assert 'Startnummer, Nachname oder Vorname' in html
     assert 'id="entry-driver"' in html and 'id="entry-vehicle"' in html
     assert '#100 · Fahrer 0' in html
+
+
+def test_assignment_search_and_vehicle_list_shortcut(client):
+    _,vehicle,_=setup(client,count=1)
+    listing=client.get('/ui/master-data?tab=vehicles').text
+    assert f'tab=assign&amp;vehicle_id={vehicle["id"]}' in listing
+    page=client.get('/ui/master-data',params={'tab':'assign','vehicle_id':vehicle['id']})
+    assert page.status_code==200
+    assert 'id="assign-driver-search"' in page.text and 'id="assign-vehicle-search"' in page.text
+    assert f'value="{vehicle["id"]}" selected>F{vehicle["id"]}' in page.text
+    assert 'data-return-tab="vehicles"' in page.text
+    assert client.get('/ui/master-data?tab=assign&vehicle_id=99999').status_code==404

@@ -76,3 +76,9 @@ Anzahl-Eingabe die einzelnen Zähler als JSON und die daraus berechneten Rohpunk
 Team gehört zur Veranstaltung. TeamMember verbindet 3–5 unterschiedliche
 Event-Nennungen. Besetzungsänderungen sind versioniert. Punkte und Platz werden
 aus aktuellen Klassenwertungen abgeleitet und nicht separat gespeichert.
+
+## Bordkartensummen (Schema 5)
+
+`Entry.card_summary` speichert alternativ zu den einzelnen SectionResult-Zeilen die Summen der gesamten Bordkarte: elf Fehleranzahlen, daraus abgeleitete Rohpunktsummen Fehler1/Fehler2 und Anzahl gefahrener Sektionsbefahrungen. Alternativ können die Rohpunktsummen direkt erfasst werden. Beide Speicherformen werden nie zugleich gewertet. Eine fehlende Anzahl gefahrener Befahrungen bleibt unvollständig; unter 70 % ist eine ausdrückliche NiW-Begründung nötig. Bestehende Sektionswerte werden beim Öffnen nicht verändert und erst nach bewusstem Speichern einer Summenerfassung ersetzt. Alte zusammengefasste Fehlerkategorien werden nicht automatisch in unbekannte Einzelkategorien zerlegt. Endwerte ohne Rohpunkte bleiben separat korrigierbar.
+
+Kategorien nach Reglement §6.1: Rückwärtsfahren 8; Kugel 20; Torstange 40; Fuß 40; Tore umfahren 80; Fremdhilfe 80; Band zerreißen 80; Ende der Sektionsbefahrung 80; Nichtbefahren 900; Anschnallpflicht 900; Helmpflicht 900. Die ersten vier zählen zu Fehler1, alle anderen zu Fehler2. Sektionsbezogene Sonderfälle und die 900-Punkte-Grenze bei Abbruch müssen auf Papier geprüft werden; die reine Gesamtsumme enthält keine Information zur Verteilung auf Sektionen. Für solche Karten stehen geprüfte Rohpunktsummen zur Verfügung.
