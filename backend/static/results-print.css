@@ -10,3 +10,5 @@
 .starter-columns{column-count:3;column-gap:6mm}.starter-columns section{break-inside:avoid;margin:4mm 0}.starter-columns h2{font-size:14px}.starter-columns td:first-child{width:20%}.adac-details{font-size:10px}.adac-details th:nth-child(5){width:23%}.adac-details th:nth-child(6){width:16%}.adac-details th:nth-child(7){width:17%}.adac-details small{font-size:9px}
 
 .adac-report + .class-report{break-before:page}
+
+.starter-columns th:first-child{width:20%}.starter-columns th:last-child{width:22%}
