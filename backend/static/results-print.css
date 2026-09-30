@@ -14,10 +14,10 @@
 
 
 .starter-report .report-header{margin:0 0 4mm}
-.starter-table{margin:0;font-size:12px;line-height:1.35}
-.starter-table .starter-class{width:15%}.starter-table .starter-number{width:12%}.starter-table .starter-hcf{width:14%}
+.starter-table{margin:0 0 6mm;font-size:12px;line-height:1.35}
+.starter-table .starter-number{width:12%}.starter-table .starter-hcf{width:14%}
 .starter-table th,.starter-table td{padding:2mm 3mm}
 .starter-table .starter-hcf-value{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
-.starter-table .starter-class-start:not(:first-child) td{border-top:2px solid #222}
+.starter-table .starter-class-heading{text-align:left;font-size:15px;background:#e8e8e8}
 .starter-group-note{display:block;font-size:10px;color:#444;margin-top:1mm}
 @media print{.starter-table{break-inside:auto}.starter-table thead{display:table-header-group}.starter-table tr{break-inside:avoid}}

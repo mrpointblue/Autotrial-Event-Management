@@ -1,13 +1,17 @@
 {% extends 'print_base.html' %}
-{% block print_style %}<link rel="stylesheet" href="/static/results-print.css?v=starter-alignment-2">{% endblock %}
+{% block print_style %}<link rel="stylesheet" href="/static/results-print.css?v=starter-classes-3">{% endblock %}
 {% block content %}
 <article class="adac-report starter-report">
-<header class="report-header"><div><h1>{{ event.name }}</h1><h2>Starterliste für die Sektionen</h2><p>{{ event.event_date.strftime('%d.%m.%Y') }} · {{ total }} Starter</p></div>{% if logo_url %}<img src="{{ logo_url }}" alt="Vereinslogo">{% endif %}</header>
+<header class="report-header"><div><h1>{{ event.name }}</h1><h2>Starterliste</h2><p>{{ event.event_date.strftime('%d.%m.%Y') }} · {{ total }} Starter</p></div>{% if logo_url %}<img src="{{ logo_url }}" alt="Vereinslogo">{% endif %}</header>
+{% for group in groups %}
 <table class="result-print-table starter-table">
-<colgroup><col class="starter-class"><col class="starter-number"><col><col class="starter-hcf"></colgroup>
-<thead><tr><th>Klasse</th><th>Startnr.</th><th class="text-cell">Name</th><th class="starter-hcf-value">HCF</th></tr></thead>
-<tbody>{% for group in groups %}
-{% for entry in group.entries %}<tr{% if loop.first %} class="starter-class-start"{% endif %}><td>{{ group.class_code }}</td><td>{{ entry.start_number }}</td><td class="text-cell">{{ entry.driver_name }}{% if loop.first and group.section_group %}<small class="starter-group-note">{{ group.section_group }}</small>{% endif %}</td><td class="starter-hcf-value">{{ entry.hcf|hcf }}</td></tr>{% endfor %}
-{% endfor %}</tbody>
-</table></article>
+<colgroup><col class="starter-number"><col><col class="starter-hcf"></colgroup>
+<thead>
+<tr><th colspan="3" class="starter-class-heading">Klasse {{ group.class_code }} · {{ group.entries|length }} Starter{% if group.section_group %}<small class="starter-group-note">{{ group.section_group }}</small>{% endif %}</th></tr>
+<tr><th>Startnr.</th><th class="text-cell">Name</th><th class="starter-hcf-value">HCF</th></tr>
+</thead>
+<tbody>{% for entry in group.entries %}<tr><td>{{ entry.start_number }}</td><td class="text-cell">{{ entry.driver_name }}</td><td class="starter-hcf-value">{{ entry.hcf|hcf }}</td></tr>{% endfor %}</tbody>
+</table>
+{% endfor %}
+</article>
 {% endblock %}
