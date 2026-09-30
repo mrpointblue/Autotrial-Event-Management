@@ -7,8 +7,17 @@
 
 .crowded .result-print-table{font-size:11px;line-height:1.15}.crowded .result-print-table th,.crowded .result-print-table td{padding:.45mm 1mm}.crowded .report-header{min-height:25mm;padding:2mm 4mm}.crowded .report-header img{width:19mm;height:22mm}.crowded .report-header h1{font-size:15px}.crowded .report-meta h2{font-size:17px}.crowded .report-note{font-size:9px;margin:1mm 0}
 
-.starter-columns{column-count:3;column-gap:6mm}.starter-columns section{break-inside:avoid;margin:4mm 0}.starter-columns h2{font-size:14px}.starter-columns td:first-child{width:20%}.adac-details{font-size:10px}.adac-details th:nth-child(5){width:23%}.adac-details th:nth-child(6){width:16%}.adac-details th:nth-child(7){width:17%}.adac-details small{font-size:9px}
+.adac-details{font-size:10px}.adac-details th:nth-child(5){width:23%}.adac-details th:nth-child(6){width:16%}.adac-details th:nth-child(7){width:17%}.adac-details small{font-size:9px}
 
 .adac-report + .class-report{break-before:page}
 
-.starter-columns th:first-child{width:20%}.starter-columns th:last-child{width:22%}
+
+
+.starter-report .report-header{margin:0 0 4mm}
+.starter-table{margin:0;font-size:12px;line-height:1.35}
+.starter-table .starter-class{width:15%}.starter-table .starter-number{width:12%}.starter-table .starter-hcf{width:14%}
+.starter-table th,.starter-table td{padding:2mm 3mm}
+.starter-table .starter-hcf-value{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.starter-table .starter-class-start:not(:first-child) td{border-top:2px solid #222}
+.starter-group-note{display:block;font-size:10px;color:#444;margin-top:1mm}
+@media print{.starter-table{break-inside:auto}.starter-table thead{display:table-header-group}.starter-table tr{break-inside:avoid}}
