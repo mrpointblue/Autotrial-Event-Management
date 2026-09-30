@@ -133,3 +133,8 @@ class TeamMember(Base):
     __tablename__ = 'team_members'
     team_id: Mapped[int] = mapped_column(ForeignKey('teams.id'),primary_key=True)
     entry_id: Mapped[int] = mapped_column(ForeignKey('entries.id'),primary_key=True)
+
+class AppSetting(Base):
+    __tablename__ = 'app_settings'
+    key: Mapped[str] = mapped_column(String(50),primary_key=True)
+    value: Mapped[dict] = mapped_column(JSON)

@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+import anyio
+from backend.services.settings import settings, display_time
 from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Request, Query
 from fastapi.encoders import jsonable_encoder
@@ -18,10 +20,11 @@ from backend.services.scoring import save_scores, class_progress, ranked_results
 
 @asynccontextmanager
 async def lifespan(app):
+    app.state.database_gate=anyio.Lock()
     Base.metadata.create_all(engine)
     with engine.begin() as conn:
         version = conn.exec_driver_sql('PRAGMA user_version').scalar()
-        if version not in (0,1,2,3,4,5,6): raise RuntimeError('Nicht unterstützte Datenbankversion')
+        if version not in (0,1,2,3,4,5,6,7): raise RuntimeError('Nicht unterstützte Datenbankversion')
         columns={r[1] for r in conn.exec_driver_sql('PRAGMA table_info(section_results)')}
         for column in ('error1','error2'):
             if column not in columns:
@@ -43,14 +46,29 @@ async def lifespan(app):
             conn.exec_driver_sql('ALTER TABLE event_classes ADD COLUMN required_sections INTEGER NOT NULL DEFAULT 5')
         if version < 6:
             conn.exec_driver_sql('UPDATE event_classes SET required_sections=(SELECT section_count*rounds FROM events WHERE events.id=event_classes.event_id)')
-        conn.exec_driver_sql('PRAGMA user_version=6')
+        conn.exec_driver_sql('PRAGMA user_version=7')
     yield
 
 app = FastAPI(title='Autotrial', version='0.1.0', lifespan=lifespan)
+# Hold the gate through response completion and dependency cleanup, including downloads.
+class DatabaseGate:
+    def __init__(self,app): self.app=app
+    async def __call__(self,scope,receive,send):
+        if scope['type']!='http' or scope.get('path','').startswith('/static/'):
+            return await self.app(scope,receive,send)
+        async with scope['app'].state.database_gate:
+            await self.app(scope,receive,send)
+
+app.add_middleware(DatabaseGate)
+
+from backend.settings_ui import router as settings_router
+app.include_router(settings_router)
+
 ROOT = Path(__file__).parent
 app.mount('/static',StaticFiles(directory=ROOT/'static'),name='static')
 templates = Jinja2Templates(directory=ROOT/'templates')
 templates.env.filters['hcf'] = format_hcf
+templates.env.filters['localtime'] = lambda value: display_time(value,settings())
 
 def get(db,model,id):
     value = db.get(model,id)
@@ -77,6 +95,8 @@ def render(request,name,**context):
                 active=session.get(Event,int(saved))
             if active is not None: context['event']=active
     if clear: context.pop('event',None)
+    config=settings()
+    context['logo_url']='/ui/settings/logo' if config['logo_enabled'] else None
     response=templates.TemplateResponse(request=request,name=name,context=context)
     if full_ui:
         if clear or active is None: response.delete_cookie('active_event')

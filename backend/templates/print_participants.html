@@ -2,7 +2,7 @@
 {% block print_style %}<link rel="stylesheet" href="/static/results-print.css?v=starter-alignment-2">{% endblock %}
 {% block content %}
 <article class="adac-report starter-report">
-<header class="report-header"><div><h1>{{ event.name }}</h1><h2>Starterliste für die Sektionen</h2><p>{{ event.event_date.strftime('%d.%m.%Y') }} · {{ total }} Starter</p></div><img src="/static/msc-logo.svg" alt="MSC Lägerdorf"></header>
+<header class="report-header"><div><h1>{{ event.name }}</h1><h2>Starterliste für die Sektionen</h2><p>{{ event.event_date.strftime('%d.%m.%Y') }} · {{ total }} Starter</p></div>{% if logo_url %}<img src="{{ logo_url }}" alt="Vereinslogo">{% endif %}</header>
 <table class="result-print-table starter-table">
 <colgroup><col class="starter-class"><col class="starter-number"><col><col class="starter-hcf"></colgroup>
 <thead><tr><th>Klasse</th><th>Startnr.</th><th class="text-cell">Name</th><th class="starter-hcf-value">HCF</th></tr></thead>

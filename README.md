@@ -210,3 +210,11 @@ Unter Bordkarten erfassen führt „Klasse öffnen / bearbeiten“ zur Klassenü
 Jede Nennung lässt sich erneut öffnen und korrigieren, einschließlich alter
 Gesamtwerte und NiW. Nach dem Speichern werden Liste und Fortschritt aktualisiert.
 Versionsprüfung schützt vor dem Überschreiben zwischenzeitlicher Änderungen.
+
+## Einstellungen
+
+Oben rechts führt „Einstellungen“ zu Zeit, Datenbank und Logo. Zeitzone sowie eine optional vom Browser oder manuell übernommene Anwendungszeit werden dauerhaft gespeichert. Die Rechner-/Docker-Hostzeit wird nicht verändert; SYS_TIME oder zusätzliche Containerrechte sind nicht erforderlich. „Wieder Rechnerzeit verwenden“ entfernt den Zeitversatz. Neue Änderungsprotokolle verwenden die Autotrial-Zeit, vorhandene Zeitstempel werden nur in der gewählten Zeitzone angezeigt.
+
+Der Datenbankexport verwendet die SQLite-Backup-Schnittstelle und enthält auch Einstellungen und Logo. Der Import akzeptiert passende Exporte mit Schema 7 bis 100 MB. Vor dem Ersetzen wird unter `/app/data/backups` automatisch eine herunterladbare Sicherung angelegt. Ein fehlgeschlagener Import setzt die Datenbank aus dieser Sicherung zurück. Während eines Imports werden andere Anfragen zurückgestellt. **Die Anwendung muss mit einem Uvicorn-Worker betrieben werden**, wie in Dockerfile/Compose vorgegeben, damit die Importsperre alle Schreibzugriffe umfasst. Sicherungsdateien bleiben im persistenten Docker-Volume, bis sie administrativ entfernt werden.
+
+Vereinslogos können als PNG/JPG bis 5 MB und 16 Megapixel hochgeladen werden. Die Anwendung prüft das Bild und speichert eine normalisierte PNG-Version in der Datenbank. Starter-, Ergebnis- und Mannschaftslisten nutzen das Logo; dauerhafte Fahrzeugkarten bleiben ohne Logo. Das MSC-Standardlogo kann wiederhergestellt oder der Druck ohne Logo gewählt werden.

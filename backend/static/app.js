@@ -406,3 +406,9 @@ if(applyClassSections)applyClassSections.addEventListener('click',()=>{
   if(!input.reportValidity()||input.value==='')return;
   document.querySelectorAll('#event-form input[name^="class_sections."]').forEach(field=>{field.value=input.value;});
 });
+
+document.querySelectorAll('form[data-confirm]:not([data-api])').forEach(form=>form.addEventListener('submit',event=>{if(!window.confirm(form.dataset.confirm))event.preventDefault();}));
+const browserTime=document.getElementById('use-browser-time');
+if(browserTime)browserTime.addEventListener('click',async()=>{browserTime.disabled=true;try{await api('/api/settings/time',{source:'browser',target:new Date().toISOString()});location.reload();}catch(error){show(error.message,true);}finally{browserTime.disabled=false;}});
+const settingsClock=document.getElementById('settings-clock');
+if(settingsClock){const start=Date.now(),epoch=Number(settingsClock.dataset.epoch)*1000;setInterval(()=>{settingsClock.textContent=new Intl.DateTimeFormat('de-DE',{dateStyle:'medium',timeStyle:'long',timeZone:settingsClock.dataset.zone}).format(new Date(epoch+Date.now()-start));},1000);}

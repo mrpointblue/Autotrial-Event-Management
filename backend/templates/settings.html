@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Einstellungen</h2>
+<section class="card"><h2>Zeit</h2>
+<p>Autotrial-Zeit: <strong id="settings-clock" data-epoch="{{ clock.timestamp() }}" data-zone="{{ config.timezone }}">{{ clock.strftime('%d.%m.%Y %H:%M:%S %Z') }}</strong></p>
+<p class="hint">Zeitzone und Uhrzeit gelten für Autotrial und die Anzeige im Änderungsprotokoll. Die Uhr des Rechners bleibt unverändert. {% if config.offset_seconds %}Eine eigene Uhrzeit ist eingestellt.{% else %}Die Rechnerzeit wird verwendet.{% endif %}</p>
+<div class="grid"><form data-api="/api/settings/time"><input type="hidden" name="source" value="timezone"><label>Zeitzone<select name="timezone">{% for zone in timezones %}<option {% if zone==config.timezone %}selected{% endif %}>{{ zone }}</option>{% endfor %}</select></label><button>Zeitzone speichern</button></form>
+<form data-api="/api/settings/time"><input type="hidden" name="source" value="manual"><label>Datum und Uhrzeit in {{ config.timezone }}<input type="datetime-local" name="target" step="1" min="2020-01-01T00:00" max="2099-12-31T23:59" value="{{ clock.strftime('%Y-%m-%dT%H:%M:%S') }}" required></label><button>Uhrzeit übernehmen</button></form></div>
+<button type="button" id="use-browser-time">Zeit dieses Geräts übernehmen</button>
+<form data-api="/api/settings/time"><input type="hidden" name="source" value="server"><button class="secondary-button">Wieder Rechnerzeit verwenden</button></form>
+</section>
+<section class="card"><h2>Datenbank</h2><p>Sicherung aller Fahrer, Fahrzeuge, Zuordnungen, Veranstaltungen, Ergebnisse und Einstellungen einschließlich Logo.</p>
+<a class="button" href="/ui/settings/database/export">Datenbank exportieren</a>
+<details><summary>Datenbank aus Sicherung wiederherstellen</summary><p class="hint">Beim Import werden die aktuellen Daten ersetzt. Vorher wird automatisch eine Sicherung erstellt. Verwendbar sind Datenbankexporte der aktuellen Autotrial-Version, maximal 100 MB.</p>
+<form action="/ui/settings/database/import" method="post" enctype="multipart/form-data" data-confirm="Datenbank wirklich ersetzen? Vorher wird automatisch eine Sicherung angelegt."><label>Datenbankdatei<input type="file" name="database_file" accept=".sqlite3,.sqlite,.db" required></label><label>Zur Bestätigung ERSETZEN eingeben<input name="confirmation" pattern="ERSETZEN" required autocomplete="off"></label><button class="danger-button">Datenbank importieren</button></form></details>
+{% if backups %}<h3>Automatische Sicherungen vor Importen</h3><div class="table-wrap"><table><thead><tr><th>Datei</th><th>Größe</th><th></th></tr></thead><tbody>{% for backup in backups %}<tr><td>{{ backup.name }}</td><td>{{ backup.size }} MB</td><td><a href="/ui/settings/database/backups/{{ backup.name }}">Herunterladen</a></td></tr>{% endfor %}</tbody></table></div>{% endif %}
+</section>
+<section class="card"><h2>Logo</h2><p>Für Starterlisten, Ergebnislisten und Mannschaftswertung. Dauerhafte Fahrzeugkarten bleiben ohne Logo.</p>
+{% if logo_url %}<img class="settings-logo-preview" src="{{ logo_url }}" alt="Aktuelles Vereinslogo">{% else %}<p>Kein Logo hinterlegt.</p>{% endif %}
+<form action="/ui/settings/logo" method="post" enctype="multipart/form-data"><label>PNG oder JPG, maximal 5 MB<input type="file" name="logo" accept="image/png,image/jpeg,.png,.jpg,.jpeg" required></label><button>Logo speichern</button></form>
+<form action="/ui/settings/logo/remove" method="post"><button class="secondary-button">Ohne Logo drucken</button></form>
+<form action="/ui/settings/logo/default" method="post"><button class="secondary-button">MSC-Standardlogo verwenden</button></form>
+</section>
+{% endblock %}

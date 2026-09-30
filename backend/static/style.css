@@ -15,3 +15,5 @@
 #score-editor{scroll-margin-top:60px}
 
 .danger-button{background:#b91c1c;margin:0 0 12px;padding:8px 12px;font-size:14px}
+
+.header{position:relative;padding-right:200px}.settings-link{position:absolute;right:24px;top:20px;color:white;text-decoration:none;background:#374151;border-radius:8px;padding:10px 14px}.settings-link:hover,.settings-link[aria-current]{background:#2563eb}.settings-logo-preview{display:block;max-width:220px;max-height:140px;object-fit:contain;margin:16px 0}#settings-clock{font-variant-numeric:tabular-nums}@media(max-width:600px){.header{padding-right:24px}.settings-link{position:static;display:inline-block;margin-bottom:14px;float:right}.header h1{clear:both}}

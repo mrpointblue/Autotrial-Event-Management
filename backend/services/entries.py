@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from backend.services.settings import app_now
 from fastapi import HTTPException
 from backend.models import Vehicle, EntryChange, Event
 from backend.services.scoring import required_sections, recheck_summary
@@ -44,5 +44,5 @@ def edit_entry(db,entry,data):
         recheck_summary(entry,required_sections(db,db.get(Event,entry.event_id),entry.class_code),previous_required)
         if (vehicle_changed or hcf_changed) and entry.scoring_status!='niw': entry.scoring_status='pending'
     entry.version+=1
-    db.add(EntryChange(entry_id=entry.id,changed_at=datetime.now(timezone.utc).isoformat(),
+    db.add(EntryChange(entry_id=entry.id,changed_at=app_now(db).isoformat(),
                        reason=data.reason,before=before,after=state()))
