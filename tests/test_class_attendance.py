@@ -65,3 +65,26 @@ def test_raw_totals_use_explicit_not_driven_and_preserve_other_niw_reasons(clien
     client.post(f"/api/events/{event['id']}/classes",json=dict(code='S1',required_sections=10))
     saved=client.get(f"/api/events/{event['id']}/entries/100").json()['entry']
     assert saved['niw_reason']=='Verspätete Abgabe'
+
+
+def test_bulk_sections_are_event_scoped_preserve_metadata_and_recheck_niw(client):
+    event,_,entries=setup(client,count=1,sections=5)
+    other=post(client,'events',dict(name='Andere',event_date='2026-10-02'))
+    client.post(f"/api/events/{event['id']}/classes",json=dict(code='S1',required_sections=5,section_group='Gruppe A',trophy_count=2))
+    client.put(f"/api/entries/{entries[0]['id']}/scores",json=dict(version=1,card_status='received',card_summary=dict(error_counts=counts(not_driven=2))))
+    path=f"/api/events/{event['id']}/class-sections"
+    assert client.put(path,json=dict(required_sections=10)).status_code==200
+    from backend.database import SessionLocal
+    from backend.models import EventClass
+    from sqlalchemy import select
+    with SessionLocal() as db:
+        assert all(c.required_sections==10 for c in db.scalars(select(EventClass).where(EventClass.event_id==event['id'])))
+        row=db.get(EventClass,(event['id'],'S1'))
+        assert row.section_group=='Gruppe A' and row.trophy_count==2
+        assert db.get(EventClass,(other['id'],'S1')).required_sections==5
+    saved=client.get(f"/api/events/{event['id']}/entries/100").json()['entry']
+    assert saved['scoring_status']=='complete' and saved['niw_reason']==''
+    assert client.put(path,json=dict(required_sections=0)).status_code==422
+    assert client.put('/api/events/9999/class-sections',json=dict(required_sections=5)).status_code==404
+    page=client.get(f"/ui/events/{event['id']}/classes").text
+    assert '<th>Sektionen</th>' in page and '<strong>10</strong>' in page and 'Für alle Klassen übernehmen' in page

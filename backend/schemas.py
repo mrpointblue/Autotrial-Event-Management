@@ -143,6 +143,9 @@ class EntryEditInput(Input):
         return valid_class_code(value)
 
 
+class ClassSectionsInput(Input):
+    required_sections: int = Field(ge=1,le=300)
+
 class EventClassInput(Input):
     required_sections: int = Field(default=5,ge=1,le=300)
     trophy_count: int | None = Field(default=None,ge=0,le=10000)

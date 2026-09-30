@@ -11,7 +11,7 @@ async function api(url, body, method='POST') {
 function values(form) {
   const data=Object.fromEntries(new FormData(form));
   form.querySelectorAll('input[type=checkbox]').forEach(input=>data[input.name]=input.checked);
-  form.querySelectorAll('input[type=number]').forEach(input=>{data[input.name]=input.value===''?null:input.value;});
+  form.querySelectorAll('input[type=number][name]').forEach(input=>{data[input.name]=input.value===''?null:input.value;});
   if(data.class_code==='')data.class_code=null;
   if(data.trophy_count==='')data.trophy_count=null;
   if(form.id==='event-form'){
@@ -399,3 +399,10 @@ if(editVehicleSearch&&entryEdit){
     document.getElementById('edit-vehicle-info').textContent=`${matches.length} Fahrzeuge gefunden. Die Auswahl gilt nur für diese Nennung.`;
   });
 }
+
+const applyClassSections=document.getElementById('apply-class-sections');
+if(applyClassSections)applyClassSections.addEventListener('click',()=>{
+  const input=document.getElementById('all-class-sections');
+  if(!input.reportValidity()||input.value==='')return;
+  document.querySelectorAll('#event-form input[name^="class_sections."]').forEach(field=>{field.value=input.value;});
+});

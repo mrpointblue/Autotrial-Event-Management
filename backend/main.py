@@ -388,7 +388,7 @@ def export_adac(event_id:int,db:Session=Depends(get_db)):
                     headers={'Content-Disposition':f'attachment; filename="adac-event-{event_id}.csv"'})
 
 
-from backend.schemas import EventClassInput, TeamInput
+from backend.schemas import EventClassInput, TeamInput, ClassSectionsInput
 
 
 def available_classes(db,event_id=None):
@@ -402,19 +402,31 @@ def validate_class(db,code,event_id=None):
         raise HTTPException(422,'Klasse zuerst unter Veranstaltungsklassen anlegen.')
 
 
+def set_class_sections(db,row,count):
+    previous=row.required_sections
+    if previous==count: return
+    row.required_sections=count
+    for entry in db.scalars(select(Entry).where(Entry.event_id==row.event_id,Entry.class_code==row.code)):
+        if entry.card_summary: recheck_summary(entry,count,previous)
+        elif entry.results and entry.scoring_status!='niw': entry.scoring_status='pending'
+        entry.version+=1
+
+
+@app.put('/api/events/{event_id}/class-sections')
+def set_all_class_sections(event_id:int,data:ClassSectionsInput,db:Session=Depends(get_db)):
+    get(db,Event,event_id)
+    classes=list(db.scalars(select(EventClass).where(EventClass.event_id==event_id)))
+    for row in classes: set_class_sections(db,row,data.required_sections)
+    commit(db)
+    return dict(status='saved',classes=len(classes))
+
+
 @app.post('/api/events/{event_id}/classes',status_code=201)
 def add_event_class(event_id:int,data:EventClassInput,db:Session=Depends(get_db)):
     get(db,Event,event_id)
     row=db.get(EventClass,(event_id,data.code))
     if row:
-        previous_required=row.required_sections
-        count_changed=row.required_sections!=data.required_sections
-        row.required_sections=data.required_sections
-        if count_changed:
-            for entry in db.scalars(select(Entry).where(Entry.event_id==event_id,Entry.class_code==data.code)):
-                if entry.card_summary: recheck_summary(entry,data.required_sections,previous_required)
-                elif entry.results and entry.scoring_status!='niw': entry.scoring_status='pending'
-                entry.version+=1
+        set_class_sections(db,row,data.required_sections)
         row.section_group=data.section_group
         row.trophy_count=data.trophy_count
     else: db.add(EventClass(event_id=event_id,**data.model_dump()))
