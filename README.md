@@ -229,8 +229,8 @@ Einzeldruck und Nachdruck bleiben verfügbar. Drucken verändert keine Nennungsd
 
 Die Bordkarten verwenden die Sektionszahl der jeweiligen Veranstaltungsklasse.
 Auf jede Vorderseite mit bis zu fünf Sektionen folgt unmittelbar ihre Richter-Rückseite,
-auch bei mehreren Blättern pro Fahrer. Im Druckdialog **A4 Hochformat, beidseitig,
-an langer Kante wenden** wählen. Die Anwendung kann den Duplexmodus des Druckers
+auch bei mehreren Blättern pro Fahrer. Im Druckdialog **A4 Querformat, beidseitig,
+an kurzer Kante wenden** wählen. Die Anwendung kann den Duplexmodus des Druckers
 nicht selbst einschalten. Vorder- und Rückseiten werden auf die bedruckbare Seite angepasst.
 
 Die Richterhilfe fasst die für den Sektionsbetrieb relevanten Bestimmungen des

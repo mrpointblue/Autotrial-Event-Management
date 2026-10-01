@@ -2,7 +2,7 @@ function fitBordcards(){
   const pages=document.querySelectorAll('.bordcard-content');
   if(!pages.length)return;
   const ruler=document.createElement('div');
-  ruler.style.cssText='width:188mm;height:275mm;position:absolute;visibility:hidden';
+  ruler.style.cssText='width:275mm;height:188mm;position:absolute;visibility:hidden';
   document.body.append(ruler);
   const {width,height}=ruler.getBoundingClientRect();
   pages.forEach(content=>{
