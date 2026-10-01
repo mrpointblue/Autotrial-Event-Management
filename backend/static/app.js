@@ -84,11 +84,18 @@ let scoreDirty=false,currentCard=null;
 const penalties=JSON.parse(document.getElementById('penalty-definitions')?.textContent||'[]').map(([key,points,title])=>[key,title,points]);
 function categoryInputs(target,counts={}){
   target.replaceChildren();
+  const groups=[['Mit HCF','Diese Punkte werden durch den HCF geteilt.'],['Ohne HCF','Diese Punkte werden unverändert addiert.']].map(([title,description],index)=>{
+    const group=document.createElement('fieldset');group.className='penalty-group '+(index===0?'with-hcf':'without-hcf');
+    const legend=document.createElement('legend');legend.textContent=title;
+    const hint=document.createElement('p');hint.textContent=description;
+    const fields=document.createElement('div');fields.className='penalty-group-fields';
+    group.append(legend,hint,fields);target.append(group);return fields;
+  });
   for(const [index,[key,title,weight]] of penalties.entries()){
     const label=document.createElement('label');label.textContent=title;
-    const points=document.createElement('small');points.textContent=`${weight} Punkte je Fehler · ${index<4?"÷ HCF":"ohne HCF"}`;label.append(points);
+    const points=document.createElement('small');points.textContent=`${weight} Punkte`;label.append(points);
     const input=document.createElement('input');input.type='number';input.min=0;input.max=100000;input.step=1;input.dataset.penalty=key;input.value=counts[key]??0;input.setAttribute('aria-label',title+' – Anzahl');
-    input.addEventListener('focus',()=>input.select());label.append(input);target.append(label);
+    input.addEventListener('focus',()=>input.select());label.append(input);groups[index<4?0:1].append(label);
   }
 }
 function readSections(){
@@ -199,6 +206,7 @@ if(lookup)lookup.addEventListener('submit',event=>{event.preventDefault();if(sco
   document.getElementById('score-editor').hidden=true;
   const data=await api(`/api/events/${lookup.dataset.event}/entries/${lookup.elements.start_number.value}`,undefined,'GET');currentCard=data;
   const e=data.entry;score.elements.entry_id.value=e.id;score.elements.version.value=e.version;score.elements.niw_reason.value=e.card_summary?.auto_niw?'':e.niw_reason;
+  document.getElementById('niw-options').open=Boolean(score.elements.niw_reason.value);
   score.elements.card_status.value=(data.sections.length||e.card_summary||e.niw_reason)?e.card_status:'received';
   document.getElementById('card-values').hidden=score.elements.card_status.value==='missing';
   document.getElementById('entry-heading').textContent=`#${e.start_number} · ${e.driver_name} · ${e.class_code} · HCF ${displayHcf(e.hcf)}`;

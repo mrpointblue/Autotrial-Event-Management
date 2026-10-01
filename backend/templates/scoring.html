@@ -9,19 +9,18 @@
 <div class="card-options"><label>Bordkartenstatus<select name="card_status"><option value="received">Bordkarte eingegangen</option><option value="missing">Bordkarte fehlt</option></select></label>
 <label>Eingabe<select name="input_mode"><option value="counts">Anzahl je Fehlerkategorie</option><option value="raw">Rohpunktsummen Fehler1 / Fehler2</option></select></label></div>
 <div id="card-values">
-<p>Summen für die gesamte Bordkarte von links nach rechts eingeben. Beispiel: 5 Rückwärtsfahrten × 8 Punkte = 40 Rohpunkte. Mit Tab zum nächsten Feld.</p>
-<p><strong>Mit HCF:</strong> Rückwärtsfahren, Kugel, Torstange und Fuß. <strong>Ohne HCF:</strong> alle übrigen Kategorien. Ergebnis = HCF-relevante Rohpunkte ÷ HCF + übrige Fehlerpunkte.</p>
+<p class="entry-instruction">Anzahlen von links nach rechts übernehmen · Mit Tab zum nächsten Feld.</p>
 <p id="previous-values" class="hint" hidden>Hier sind bereits Werte gespeichert. Bei neuer Erfassung nach Fehlerkategorien bitte alle Summen von der Papierkarte übernehmen. Die neue Eingabe ersetzt die bisherigen Werte erst beim Speichern.</p>
-<div id="card-counts" class="penalty-fields"></div>
+<div id="card-counts" class="penalty-groups"></div>
 <div id="card-raw" class="grid" hidden><label>Fehler1 – Rohpunktsumme (wird durch HCF geteilt)<input name="raw1" type="number" min="0" step="0.01"></label><label>Fehler2 – Rohpunktsumme (ohne HCF)<input name="raw2" type="number" min="0" step="0.01"></label></div>
 <div id="card-final" hidden><label>Berechnetes Ergebnis<input name="final_points" type="number" min="0" step="0.0001"></label></div>
 <div id="card-sections" hidden><div id="sections"></div></div>
-<p id="card-preview" class="hint" aria-live="polite"></p>
+<p id="card-preview" class="score-result" aria-live="polite"></p>
 <label id="not-driven-summary" hidden>Nichtbefahren – Anzahl<input name="not_driven" type="number" min="0" step="1" placeholder="Anzahl nicht befahrener Sektionen"></label>
-<p id="attendance-preview" class="hint" aria-live="polite"></p>
-<small>Weniger als 70 % gefahren führt automatisch zu NiW. Bei Rohpunktsummen „Nichtbefahren“ zusätzlich als Anzahl angeben; die zugehörigen Strafpunkte müssen in Fehler2 bereits enthalten sein.</small>
+<p id="attendance-preview" class="score-attendance" aria-live="polite"></p>
+<details class="scoring-help"><summary>Hinweise zur Wertung</summary><p>Weniger als 70 % gefahren führt automatisch zu NiW. Bei Rohpunktsummen „Nichtbefahren“ zusätzlich als Anzahl angeben; die zugehörigen Strafpunkte müssen in Fehler2 enthalten sein.</p></details>
 </div>
-<label>Weitere NiW-Begründung (optional)<input name="niw_reason" placeholder="z. B. verspätete Abgabe"></label><button>Speichern + nächste Bordkarte</button>
+<div class="score-actions"><details id="niw-options"><summary>NiW manuell begründen</summary><label>Begründung<input name="niw_reason" placeholder="z. B. verspätete Abgabe"></label></details><button>Speichern + nächste Bordkarte</button></div>
 </form></div></section>
 <div class="scoring-layout"><section class="card"><div id="score-overview" data-event="{{ event.id }}" data-class="{{ selected_class }}">{% include 'score_overview.html' %}</div></section><aside class="card progress-panel">{% include 'progress.html' %}</aside></div>
 {% endblock %}
