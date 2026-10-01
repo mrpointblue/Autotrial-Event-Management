@@ -1,13 +1,14 @@
 {% extends 'print_base.html' %}
-{% block print_style %}<link rel="stylesheet" href="/static/cards-print.css?v=categories-11-2">{% endblock %}
+{% block print_style %}<link rel="stylesheet" href="/static/cards-print.css?v=class-colors-1">{% endblock %}
 {% block content %}
 <aside class="no-print card-print-help"><strong>{{ cards|length }} Bordkarte{{ 'n' if cards|length != 1 else '' }} mit Richterinformationen</strong><p>A4 Querformat · Beidseitig drucken · An kurzer Kante wenden. Jede Vorderseite wird unmittelbar von ihrer Rückseite gefolgt. Bis zu zehn Sektionen je Blatt; zusätzliche Leerzeilen dienen als Schreibreserve.</p></aside>
 {% import 'penalties.html' as penalty_definitions %}{% set categories=penalty_definitions.categories %}
-{% for card in cards %}{% set entry=card.entry %}{% set required_sections=card.required_sections %}
+{% set class_colors={'Q1':'yellow','Q2N':'yellow','Q2-N':'yellow','S1':'yellow','S2':'yellow','Q2':'pink','V1':'pink','O2':'green','Q3':'green','J':'green','N':'green'} %}
+{% for card in cards %}{% set entry=card.entry %}{% set required_sections=card.required_sections %}{% set class_color=class_colors.get(entry.class_code|upper|replace(' ',''),'neutral') %}
 {% for offset in range(0,required_sections,10) %}{% set sheet_number=loop.index %}{% set sheet_count=(required_sections+9)//10 %}
 <article class="bordcard-page bordcard-front" data-entry-id="{{ entry.id }}" data-sheet="{{ sheet_number }}"><div class="bordcard-content">
 <div class="reference-event">{{ event.name }} · {{ event.event_date.strftime('%d.%m.%Y') }}<span>Blatt {{ sheet_number }}/{{ sheet_count }}</span></div>
-<header class="reference-identity"><div>Name <strong>{{ entry.driver_name }}</strong></div><div>Klasse <strong>{{ entry.class_code }}</strong></div><div>Start-Nr. <strong>{{ entry.start_number }}</strong></div><div>HCF <strong>{{ entry.hcf|hcf }}</strong></div></header>
+<header class="reference-identity"><div>Name <strong>{{ entry.driver_name }}</strong></div><div>Klasse <strong class="class-marker class-marker-{{ class_color }}">{{ entry.class_code }}</strong></div><div>Start-Nr. <strong>{{ entry.start_number }}</strong></div><div>HCF <strong>{{ entry.hcf|hcf }}</strong></div></header>
 <table class="reference-card"><colgroup><col class="section-col">{% for c in categories %}<col>{% endfor %}</colgroup><thead>
 <tr><th rowspan="3" class="section-heading">{% if logo_url %}<img src="{{ logo_url }}" alt="Vereinslogo">{% endif %}<div>Sektions-Nr.<br>und<br>Namenskürzel</div></th>{% for key,points,title,hint in categories %}<th class="category-points" data-penalty="{{ key }}">{{ points }}</th>{% endfor %}</tr>
 <tr>{% for key,points,title,hint in categories %}<th class="category-title">{{ title|safe }}</th>{% endfor %}</tr>
@@ -17,7 +18,7 @@
 <footer>{{ required_sections }} vorgeschriebene Sektionen · Sektionen {{ offset+1 }} bis {{ [offset+10,required_sections]|min }} · Fahrzeug: {{ entry.vehicle_snapshot.manufacturer }} {{ entry.vehicle_snapshot.model }} · Bordkarte {{ entry.id }}<br>Striche / Anzahlen erfassen. Alle elf Kategoriesummen in derselben Reihenfolge in die Bordkartenerfassung übernehmen. Abbruch und fehlende Tore dokumentieren. Berechnung durch die Auswertung.</footer>
 </div></article>
 <article class="bordcard-page bordcard-back" data-entry-id="{{ entry.id }}" data-sheet="{{ sheet_number }}"><div class="bordcard-content">
-<header class="reference-back-header"><strong>Fehlerbewertung · Informationen für Sektionsrichter</strong><span>#{{ entry.start_number }} · {{ entry.driver_name }} · {{ entry.class_code }} · Blatt {{ sheet_number }}/{{ sheet_count }}</span></header>
+<header class="reference-back-header"><strong>Fehlerbewertung · Informationen für Sektionsrichter</strong><span>#{{ entry.start_number }} · {{ entry.driver_name }} · <b class="class-marker class-marker-{{ class_color }}">{{ entry.class_code }}</b> · Blatt {{ sheet_number }}/{{ sheet_count }}</span></header>
 {% include 'card_judge_info.html' %}
 </div></article>
 {% endfor %}{% endfor %}
