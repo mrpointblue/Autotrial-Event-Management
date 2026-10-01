@@ -63,7 +63,7 @@ oder Fahrzeug ist weiterhin eine erneute Bestätigung der Bordkarte erforderlich
 
 ## Klassen, Kontaktdaten und Mannschaften
 
-EventClass gehört zu einer Veranstaltung und enthält Code, Sektionsgruppe und
+EventClass gehört zu einer Veranstaltung und enthält Code, Farbe, Sektionsanzahl und
 optionale feste Pokalanzahl. Neue Veranstaltungen erhalten die Standardklassen.
 Die Migration ergänzt bestehende Veranstaltungsklassen einschließlich genutzter
 Klassenbezeichnungen. Belegte Klassen können nicht gelöscht werden.

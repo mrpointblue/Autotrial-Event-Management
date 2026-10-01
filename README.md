@@ -184,7 +184,7 @@ Mannschaften werden aus drei bis fünf Startnummern genannt und über die besten
 
 Die [Excel-Abgleichsdokumentation](docs/excel-parity.md) beschreibt die Funktionen
 der bereitgestellten Auswertungsmappe und ihre Umsetzung. Neu sind konfigurierbare
-Veranstaltungsklassen mit Sektionsgruppe/Pokalplanung, Fehleranzahl-Eingabe,
+Veranstaltungsklassen mit Farbe, Sektionsanzahl und Pokalplanung, Fehleranzahl-Eingabe,
 Mannschaftsnennung und automatische Best-drei-Wertung sowie Starterliste und
 ADAC-CSV. Der ADAC-Druck enthält zusätzlich Anschrift, Verein und Mitgliedsnummer.
 

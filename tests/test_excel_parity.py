@@ -28,7 +28,8 @@ def test_custom_classes_are_event_scoped_and_protected(client):
     second=post(client,'events',dict(name='Anderes Event',event_date='2026-10-01',section_count=1))
     assert client.post(f"/api/events/{second['id']}/entries",json=dict(driver_id=entries[0]['driver_id'],class_code='Mini Fun')).status_code==422
     assert client.delete(f"/api/events/{event['id']}/classes/S1").status_code==409
-    assert 'Sektionen 1–5' in client.get(f"/ui/events/{event['id']}/classes").text
+    assert 'Mini Fun' in client.get(f"/ui/events/{event['id']}/classes").text
+    assert 'Sektionsgruppe' not in client.get(f"/ui/events/{event['id']}/classes").text
     with SessionLocal() as db:
         db.get(Entry,entries[0]['id']).class_code='Mini Fun';db.commit()
     assert 'Mini Fun' in client.get(f"/print/participants/{event['id']}").text

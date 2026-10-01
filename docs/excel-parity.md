@@ -6,11 +6,11 @@ und keine echten Teilnehmer-, Kontakt- oder Ergebnisdaten in das Repository übe
 
 | Excel-Funktion | Umsetzung |
 | --- | --- |
-| Makro1: Klassenblätter erstellen | Veranstaltung mit Standardklassen; eigene Klassen und Sektionsgruppen ergänzen oder unbenutzte Klassen entfernen |
+| Makro1: Klassenblätter erstellen | Veranstaltung mit Standardklassen; eigene Klassen ergänzen oder unbenutzte Klassen entfernen |
 | Auswerten: Fehler summieren, HCF, Sortierung, Tabelle B, Drucktabelle | Automatische Auswertung aus gespeicherten Nennungen; Klassendruck, Sammeldruck und ADAC-Druck |
 | Sammeln: Klassen in Gesamtübersicht kopieren | ADAC-Übersicht direkt aus aktuellen Klassenwertungen, mit Kontakt-/Vereinsdaten |
 | Datensammeln: Ergebnisse in eigene Datei speichern | PDF über Druckdialog und ADAC-CSV für Tabellenprogramme |
-| Startnummern: Starterübersicht nach Klassen | Druckbare Starterliste mit optionalen Sektionsgruppen, ohne feste Zeilenbegrenzung |
+| Startnummern: Starterübersicht nach Klassen | Druckbare Starterliste ohne feste Zeilenbegrenzung |
 | Loeschen_der_Blätter: Vorbereitung einer neuen Veranstaltung | Neue Veranstaltung anlegen; Stammdaten wiederverwenden, bisherige Ergebnisse bleiben erhalten |
 | Pokalformel C4 | Planung mit 30 %, kaufmännisch gerundet und mindestens einem Pokal je belegter Klasse; feste Anzahl für Sonderregeln einstellbar |
 | Mannschaftsblatt (nur feste Werte in Excel) | Nennung über 3–5 Startnummern; die drei höchsten Klassenpunkte werden automatisch addiert |
@@ -57,8 +57,7 @@ Die Excel enthält keine automatische Mannschaftsberechnung. Diese wurde nach de
 expliziten Vorgabe „fünf Fahrer, beste drei nach Punkten“ ergänzt.
 Die Pokalformel prüft auf Klasse J, das vorhandene Jugendblatt heißt jedoch Jugend.
 Eine Sonder-Pokalzahl wird daher bewusst über die Klasseneinstellung festgelegt.
-Sektionsgruppen sind frei beschreibbar; keine festen Streckenbereiche aus 2026
-werden als Vorgabe für zukünftige Veranstaltungen angenommen.
+Klassenfarben kennzeichnen die zugehörigen Sektionen. Die Sektionsanzahl wird je Klasse festgelegt.
 Freie Klassen sind Veranstaltungsentscheidungen, keine automatische Bestätigung
 reglementkonformer Fahrzeugzuordnung.
 

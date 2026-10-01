@@ -7,7 +7,7 @@
 <table class="result-print-table starter-table">
 <colgroup><col class="starter-number"><col><col class="starter-hcf"></colgroup>
 <thead>
-<tr><th colspan="3" class="starter-class-heading">Klasse {{ group.class_code }} · {{ group.entries|length }} Starter{% if group.section_group %}<small class="starter-group-note">{{ group.section_group }}</small>{% endif %}</th></tr>
+<tr><th colspan="3" class="starter-class-heading">Klasse {{ group.class_code }} · {{ group.entries|length }} Starter</th></tr>
 <tr><th>Startnr.</th><th class="text-cell">Name</th><th class="starter-hcf-value">HCF</th></tr>
 </thead>
 <tbody>{% for entry in group.entries %}<tr><td>{{ entry.start_number }}</td><td class="text-cell">{{ entry.driver_name }}</td><td class="starter-hcf-value">{{ entry.hcf|hcf }}</td></tr>{% endfor %}</tbody>

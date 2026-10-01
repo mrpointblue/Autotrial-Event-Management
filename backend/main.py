@@ -443,7 +443,7 @@ def participant_groups(db,event_id):
     groups={}
     for entry in db.scalars(select(Entry).where(Entry.event_id==event_id).order_by(Entry.class_code,Entry.start_number)):
         groups.setdefault(entry.class_code,[]).append(entry)
-    return [dict(class_code=key,entries=entries,section_group=(db.get(EventClass,(event_id,key)).section_group if db.get(EventClass,(event_id,key)) else '')) for key,entries in groups.items()]
+    return [dict(class_code=key,entries=entries) for key,entries in groups.items()]
 
 
 def adac_rows(db,groups):
@@ -532,7 +532,7 @@ def add_event_class(event_id:int,data:EventClassInput,db:Session=Depends(get_db)
     row=db.get(EventClass,(event_id,data.code))
     if row:
         set_class_sections(db,row,data.required_sections)
-        row.section_group=data.section_group
+        if 'section_group' in data.model_fields_set: row.section_group=data.section_group
         row.trophy_count=data.trophy_count
         if data.color is not None: row.color=data.color
     else: db.add(EventClass(event_id=event_id,**(data.model_dump() | {'color':data.color or default_color(data.code)})))
