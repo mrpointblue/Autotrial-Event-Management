@@ -26,7 +26,7 @@ async def lifespan(app):
     Base.metadata.create_all(engine)
     with engine.begin() as conn:
         version = conn.exec_driver_sql('PRAGMA user_version').scalar()
-        if version not in (0,1,2,3,4,5,6,7,8,9): raise RuntimeError('Nicht unterstützte Datenbankversion')
+        if version not in (0,1,2,3,4,5,6,7,8,9,10): raise RuntimeError('Nicht unterstützte Datenbankversion')
         columns={r[1] for r in conn.exec_driver_sql('PRAGMA table_info(section_results)')}
         for column in ('error1','error2'):
             if column not in columns:
@@ -55,7 +55,10 @@ async def lifespan(app):
                 conn.exec_driver_sql('UPDATE event_classes SET color=? WHERE event_id=? AND code=?',(default_color(code),event_id,code))
         if 'closed' not in {r[1] for r in conn.exec_driver_sql('PRAGMA table_info(events)')}:
             conn.exec_driver_sql('ALTER TABLE events ADD COLUMN closed BOOLEAN NOT NULL DEFAULT 0')
-        conn.exec_driver_sql('PRAGMA user_version=9')
+        if version < 10:
+            conn.exec_driver_sql("UPDATE event_classes SET color='red' WHERE color='pink'")
+            conn.exec_driver_sql("UPDATE event_classes SET color='blue' WHERE color='purple'")
+        conn.exec_driver_sql('PRAGMA user_version=10')
     yield
 
 app = FastAPI(title='Autotrial', version='0.1.0', lifespan=lifespan)

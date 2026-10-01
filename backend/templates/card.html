@@ -1,5 +1,5 @@
 {% extends 'print_base.html' %}
-{% block print_style %}<link rel="stylesheet" href="/static/cards-print.css?v=class-colors-2">{% endblock %}
+{% block print_style %}<link rel="stylesheet" href="/static/cards-print.css?v=class-colors-3">{% endblock %}
 {% block content %}
 <aside class="no-print card-print-help"><strong>{{ cards|length }} Bordkarte{{ 'n' if cards|length != 1 else '' }} mit Richterinformationen</strong><p>A4 Querformat · Beidseitig drucken · An kurzer Kante wenden. Jede Vorderseite wird unmittelbar von ihrer Rückseite gefolgt. Bis zu zehn Sektionen je Blatt; zusätzliche Leerzeilen dienen als Schreibreserve.</p></aside>
 {% import 'penalties.html' as penalty_definitions %}{% set categories=penalty_definitions.categories %}

@@ -9,6 +9,6 @@
 @media print{.print-page{margin:0;padding:0}.bordcard-page{page:bordcard;width:100%;max-width:277mm;margin:0;break-after:page;break-inside:avoid}.bordcard-page:last-child{break-after:auto}.bordcard-content{transform-origin:top left}.reference-card tr,.judge-errors tr{break-inside:avoid}*{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
 
 /* Class highlights from the supplied 21.09.2025 board cards; unlisted classes stay neutral. */
-.class-marker{display:inline-block;padding:1mm 3mm;border:1px solid #555;border-radius:1mm;color:#111;white-space:nowrap;print-color-adjust:exact;-webkit-print-color-adjust:exact}.class-marker-yellow{background:#fff176}.class-marker-pink{background:#f2a6d5}.class-marker-green{background:#8ed8aa}.class-marker-neutral{background:#fff}
+.class-marker{display:inline-block;padding:1mm 3mm;border:1px solid #555;border-radius:1mm;color:#111;white-space:nowrap;print-color-adjust:exact;-webkit-print-color-adjust:exact}.class-marker-yellow{background:#fff176}.class-marker-red{background:#dc2626;color:#fff}.class-marker-green{background:#8ed8aa}.class-marker-neutral{background:#fff}
 
-.class-marker-blue{background:#93c5fd}.class-marker-orange{background:#fdba74}.class-marker-purple{background:#c4b5fd}
+.class-marker-blue{background:#93c5fd}.class-marker-orange{background:#fdba74}

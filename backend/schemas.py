@@ -147,7 +147,7 @@ class ClassSectionsInput(Input):
     required_sections: int = Field(ge=1,le=300)
 
 class EventClassInput(Input):
-    color: Literal['neutral','yellow','pink','green','blue','orange','purple'] | None = None
+    color: Literal['neutral','yellow','green','red','orange','blue'] | None = None
     required_sections: int = Field(default=5,ge=1,le=300)
     trophy_count: int | None = Field(default=None,ge=0,le=10000)
     code: str

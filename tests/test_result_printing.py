@@ -78,5 +78,5 @@ def test_migrate_old_database_preserves_scores(tmp_path):
     for _ in range(2):
         subprocess.run([sys.executable,'-c',code],env={**os.environ,'DATA_DIR':str(tmp_path)},check=True,capture_output=True)
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0]==9
+        assert db.execute('PRAGMA user_version').fetchone()[0]==10
         assert db.execute('SELECT points,error1,error2 FROM section_results').fetchone()==(42.125,None,None)
