@@ -81,12 +81,12 @@ async function refreshProgress(){
 if(progress)setInterval(refreshProgress,5000);
 const lookup=document.getElementById('lookup-form'),score=document.getElementById('score-form');
 let scoreDirty=false,currentCard=null;
-const penalties=[['reverse','Rückwärtsfahren',8],['ball','Kugel',20],['pole','Torstange',40],['foot','Fuß',40],['missed_gate','Tore umfahren',80],['assistance','Fremdhilfe',80],['band','Band zerreißen',80],['exit','Ende der Sektionsbefahrung',80],['not_driven','Nichtbefahren',900],['seatbelt','Anschnallpflicht',900],['helmet','Helmpflicht',900]];
+const penalties=JSON.parse(document.getElementById('penalty-definitions')?.textContent||'[]').map(([key,points,title])=>[key,title,points]);
 function categoryInputs(target,counts={}){
   target.replaceChildren();
-  for(const [key,title,weight] of penalties){
+  for(const [index,[key,title,weight]] of penalties.entries()){
     const label=document.createElement('label');label.textContent=title;
-    const points=document.createElement('small');points.textContent=`${weight} Punkte je Fehler`;label.append(points);
+    const points=document.createElement('small');points.textContent=`${weight} Punkte je Fehler · ${index<4?"÷ HCF":"ohne HCF"}`;label.append(points);
     const input=document.createElement('input');input.type='number';input.min=0;input.max=100000;input.step=1;input.dataset.penalty=key;input.value=counts[key]??0;input.setAttribute('aria-label',title+' – Anzahl');
     input.addEventListener('focus',()=>input.select());label.append(input);target.append(label);
   }
@@ -128,8 +128,9 @@ function renderSections(data){
       input.type='number';input.min='0';input.step='0.01';input.dataset[key]=i;input.value=old?.[key]??'';
       input.addEventListener('input',()=>{delete box.dataset.legacy;});label.append(input);rawFields.append(label);
     }
-    const penalties=[['reverse','Rückwärtsfahren · 8 Punkte'],['ball','Kugel · 20 Punkte'],['pole','Torstange · 40 Punkte'],['foot','Fuß · 40 Punkte'],['missed_gate','Tore umfahren · 80 Punkte'],['assistance','Fremdhilfe · 80 Punkte'],['band','Band zerreißen · 80 Punkte'],['exit','Ende der Sektionsbefahrung · 80 Punkte'],['not_driven','Nichtbefahren · 900 Punkte'],['seatbelt','Anschnallpflicht · 900 Punkte'],['helmet','Helmpflicht · 900 Punkte']];
-    for(const [key,title] of penalties){
+
+    for(const [key,labelText,weight] of penalties){
+      const title=`${labelText} · ${weight} Punkte`;
       const label=document.createElement('label'),input=document.createElement('input');label.textContent=key==='missed_gate'&&old?.error_counts&&!("assistance" in old.error_counts)?'Tore / Fremdhilfe · 80 Punkte (bisher zusammen)':key==='not_driven'&&old?.error_counts&&!("seatbelt" in old.error_counts)?'900-Punkte-Fälle (bisher zusammen)':title;
       input.type='number';input.min='0';input.max='100000';input.step='1';input.dataset.penalty=key;input.value=old?.error_counts?.[key]??0;
       label.append(input);countFields.append(label);

@@ -1,0 +1,14 @@
+{# Shared order, labels and points for paper cards and score entry. #}
+{% set categories=[
+('reverse',8,'Rückwärtsfahren','fahren<br>rollen<br>rutschen'),
+('ball',20,'Kugel','direkt<br>und<br>indirekt'),
+('pole',40,'Torstange','Kugel lässt sich<br>nicht mehr<br>auflegen'),
+('foot',40,'Fuß','ein Fuß<br>am Boden<br>(Quad)'),
+('missed_gate',80,'Tore umfahren','Tor nicht<br>durchfahren<br>(Tor auslassen)'),
+('assistance',80,'Fremdhilfe','Einweisen<br>von außen trotz<br>Abmahnung'),
+('band',80,'Band zerreißen','Absperrband um-/<br>überfahren<br>A-/E-Schild'),
+('exit',80,'Ende der Sektionsbefahrung','Abbruch; fehlende<br>Tore zusätzlich<br>notieren'),
+('not_driven',900,'Nichtbefahren','Sektion verweigert /<br>erstes Tor<br>nicht befahren'),
+('seatbelt',900,'Anschnallpflicht','ohne Gurt /<br>in der Sektion<br>abschnallen'),
+('helmet',900,'Helmpflicht','ohne Pflichthelm /<br>in der Sektion<br>abnehmen')
+] %}

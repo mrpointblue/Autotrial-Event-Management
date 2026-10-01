@@ -1,4 +1,5 @@
 {% extends 'base.html' %}{% block content %}
+{% import 'penalties.html' as penalty_definitions %}<script id="penalty-definitions" type="application/json">{{ penalty_definitions.categories|tojson }}</script>
 <h2>Bordkarten erfassen</h2>
 <nav id="class-strip" aria-label="Klassenfortschritt">{% for g in progress %}<a href="/ui/events/{{ event.id }}/scoring?class_code={{ g.class_code|urlencode }}">{{ g.class_code }} · {{ g.complete }}/{{ g.total }}{% if g.ready %} ✓{% endif %}</a>{% endfor %}</nav>
 <section class="card card-entry">
@@ -9,6 +10,7 @@
 <label>Eingabe<select name="input_mode"><option value="counts">Anzahl je Fehlerkategorie</option><option value="raw">Rohpunktsummen Fehler1 / Fehler2</option></select></label></div>
 <div id="card-values">
 <p>Summen für die gesamte Bordkarte von links nach rechts eingeben. Beispiel: 5 Rückwärtsfahrten × 8 Punkte = 40 Rohpunkte. Mit Tab zum nächsten Feld.</p>
+<p><strong>Mit HCF:</strong> Rückwärtsfahren, Kugel, Torstange und Fuß. <strong>Ohne HCF:</strong> alle übrigen Kategorien. Ergebnis = HCF-relevante Rohpunkte ÷ HCF + übrige Fehlerpunkte.</p>
 <p id="previous-values" class="hint" hidden>Hier sind bereits Werte gespeichert. Bei neuer Erfassung nach Fehlerkategorien bitte alle Summen von der Papierkarte übernehmen. Die neue Eingabe ersetzt die bisherigen Werte erst beim Speichern.</p>
 <div id="card-counts" class="penalty-fields"></div>
 <div id="card-raw" class="grid" hidden><label>Fehler1 – Rohpunktsumme (wird durch HCF geteilt)<input name="raw1" type="number" min="0" step="0.01"></label><label>Fehler2 – Rohpunktsumme (ohne HCF)<input name="raw2" type="number" min="0" step="0.01"></label></div>

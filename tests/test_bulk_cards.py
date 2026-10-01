@@ -99,3 +99,19 @@ def test_judge_error_descriptions_stay_inside_table_cells(client):
     assert sum(len(row)==3 for row in table.rows)==12
     assert sum(len(row)==1 for row in table.rows)==1
     assert [row[0] for row in table.rows[1:] if len(row)==3]==['8','20','40','40','80','80','80','80','900','900','900']
+
+
+def test_print_columns_match_score_entry_categories(client):
+    import json
+    import re
+    event,_,_=setup(client,count=1,sections=5)
+    scoring=client.get(f"/ui/events/{event['id']}/scoring").text
+    definitions=json.loads(re.search(r'<script id="penalty-definitions" type="application/json">(.*?)</script>',scoring,re.S)[1])
+    printed=client.get(f"/print/cards/{event['id']}").text
+    columns=re.findall(r'<th class="category-points" data-penalty="([^"]+)">(\d+)</th>',printed)
+    titles=re.findall(r'<th class="category-title">(.*?)</th>',printed)
+    assert columns==[(key,str(points)) for key,points,title,hint in definitions]
+    assert titles==[title for key,points,title,hint in definitions]
+    assert len(columns)==11
+    assert columns[-3:]==[('not_driven','900'),('seatbelt','900'),('helmet','900')]
+    assert 'colspan="7">ohne HCF' in printed and 'colspan="11">gesamt' in printed

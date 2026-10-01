@@ -54,3 +54,23 @@ def test_replace_sections_with_summary_and_back_without_double_counting(client):
     assert score(client,saved['entry'],[1,2]).status_code==200
     saved=client.get(f"/api/events/{event['id']}/entries/100").json()
     assert saved['entry']['card_summary'] is None and Decimal(saved['totals']['total'])==3
+
+
+import pytest
+
+@pytest.mark.parametrize('category,points,uses_hcf',[
+    ('reverse',8,True),('ball',20,True),('pole',40,True),('foot',40,True),
+    ('missed_gate',80,False),('assistance',80,False),('band',80,False),('exit',80,False),
+    ('not_driven',900,False),('seatbelt',900,False),('helmet',900,False),
+])
+def test_each_category_applies_hcf_only_to_the_first_four(client,category,points,uses_hcf):
+    from decimal import ROUND_HALF_UP
+    event,_,entries=setup(client,count=1,sections=10)
+    data=dict(version=1,card_status='received',card_summary=dict(error_counts=counts(**{category:2})))
+    assert client.put(f"/api/entries/{entries[0]['id']}/scores",json=data).json()['status']=='complete'
+    saved=client.get(f"/api/events/{event['id']}/entries/100").json()
+    raw=Decimal(points*2)
+    assert Decimal(saved['entry']['card_summary']['error1'])==(raw if uses_hcf else 0)
+    assert Decimal(saved['entry']['card_summary']['error2'])==(0 if uses_hcf else raw)
+    expected=(raw/Decimal('1.73') if uses_hcf else raw).quantize(Decimal('.01'),rounding=ROUND_HALF_UP)
+    assert Decimal(saved['totals']['total'])==expected

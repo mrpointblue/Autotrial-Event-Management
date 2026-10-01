@@ -239,5 +239,7 @@ Fehlerpunkte, Torregeln, Sicherheitsvorgaben, Abbruchgründe, die 900-Punkte-Abb
 und den klassenabhängigen Mindestumfang für 70 %. Sonderbestimmungen der Veranstaltung
 bleiben zu beachten. Die bereitgestellte MSC-Bordkarte 2025 präzisiert Fremdhilfe als Einweisen trotz Abmahnung.
 Das Drucklayout folgt dieser Vorlage: Strichliste vorne, breite Fehlerdefinitionen hinten.
-Die gemeinsame 900-Punkte-Spalte wird mit N (Nichtbefahren), G (Gurt) oder H (Helm) unterschieden. Es wird keine zusätzliche
+Alle elf Fehlerkategorien entsprechen der Eingabemaske, einschließlich drei getrennter
+900-Punkte-Spalten. Reihenfolge, Namen und Punktwerte stammen für Druck und Erfassung
+aus der gemeinsamen Definition in `backend/templates/penalties.html`. Es wird keine zusätzliche
 Strafentscheidung aus der Druckfunktion abgeleitet.
