@@ -61,3 +61,39 @@ def test_bulk_print_is_event_scoped_read_only_and_empty_safe(client):
     assert html.status_code==200 and len(PrintedPages(html.text).pages)==2
     assert client.get(path).json()==before
     assert client.get('/print/cards/999999').status_code==404
+
+
+def test_judge_error_descriptions_stay_inside_table_cells(client):
+    event,_,_=setup(client,count=1,sections=5)
+
+    class JudgeTable(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.active=False
+            self.in_cell=False
+            self.rows=[]
+            self.cells=None
+            self.outside=[]
+        def handle_starttag(self,tag,attrs):
+            if tag=='table' and dict(attrs).get('class')=='judge-errors': self.active=True
+            if not self.active: return
+            if tag=='tr': self.cells=[]
+            if tag in ('td','th'):
+                self.in_cell=True
+                self.cells.append('')
+        def handle_data(self,data):
+            if not self.active or not data.strip(): return
+            if self.in_cell: self.cells[-1]+=data
+            else: self.outside.append(data)
+        def handle_endtag(self,tag):
+            if not self.active: return
+            if tag in ('td','th'): self.in_cell=False
+            if tag=='tr': self.rows.append(self.cells)
+            if tag=='table': self.active=False
+
+    table=JudgeTable()
+    table.feed(client.get(f"/print/cards/{event['id']}").text)
+    assert not table.outside, 'Descriptions must not be foster-parented above the table by browsers'
+    assert len(table.rows)==12
+    assert all(len(row)==2 and all(cell.strip() for cell in row) for row in table.rows)
+    assert [row[0] for row in table.rows[1:]]==['8','20','40','40','80','80','80','80','900','900','900']

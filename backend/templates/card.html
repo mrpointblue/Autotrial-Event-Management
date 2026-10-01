@@ -1,5 +1,5 @@
 {% extends 'print_base.html' %}
-{% block print_style %}<link rel="stylesheet" href="/static/cards-print.css?v=landscape-2">{% endblock %}
+{% block print_style %}<link rel="stylesheet" href="/static/cards-print.css?v=landscape-3">{% endblock %}
 {% block content %}
 <aside class="no-print card-print-help"><strong>{{ cards|length }} Bordkarte{{ 'n' if cards|length != 1 else '' }} mit Richterinformationen</strong><p>A4 Querformat · Beidseitig drucken · An kurzer Kante wenden. Jede Vorderseite wird unmittelbar von ihrer Rückseite gefolgt. Bei mehr als fünf Sektionen entstehen mehrere Blätter je Fahrer.</p></aside>
 {% for card in cards %}{% set entry=card.entry %}{% set required_sections=card.required_sections %}
