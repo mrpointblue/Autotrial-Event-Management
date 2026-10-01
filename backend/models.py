@@ -54,6 +54,7 @@ class Event(Base):
     organizer: Mapped[str] = mapped_column(default='')
     section_count: Mapped[int]
     rounds: Mapped[int] = mapped_column(default=1)
+    closed: Mapped[bool] = mapped_column(default=False,server_default='0')
     rules_version: Mapped[str] = mapped_column(default='ADAC-SH-2026-03-09')
     __table_args__ = (CheckConstraint('section_count BETWEEN 1 AND 30'), CheckConstraint('rounds BETWEEN 1 AND 10'))
 

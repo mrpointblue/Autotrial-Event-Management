@@ -428,3 +428,17 @@ if(entryClassColor){
   const update=()=>{const option=entryClassColor.selectedOptions[0];preview.className='class-marker class-marker-'+(option.dataset.color||'neutral');preview.textContent=option.value?option.textContent:'Klasse auswählen, um die Sektionsfarbe zu sehen.';};
   entryClassColor.addEventListener('change',update);update();
 }
+
+// Closed events remain readable; their editing controls are disabled as well as the API.
+const closedEvent=document.body.dataset.closedEvent;
+if(closedEvent){
+  document.querySelectorAll('form').forEach(form=>{
+    const path=form.dataset.api||'';
+    const belongs=path===`/api/events/${closedEvent}`||path.startsWith(`/api/events/${closedEvent}/`)||/^\/api\/(entries|teams)\//.test(path)||form.id==='score-form'||form.id==='entry-edit-form';
+    if(belongs&&!path.endsWith('/reopen')){
+      const fields=document.createElement('fieldset');fields.disabled=true;fields.style.border='0';fields.style.padding='0';fields.style.margin='0';
+      while(form.firstChild)fields.append(form.firstChild);
+      form.append(fields);
+    }
+  });
+}

@@ -13,7 +13,7 @@ def test_class_defaults_and_per_class_setup(client):
         assert db.get(EventClass,(event['id'],'V1')).required_sections==10
         assert db.get(EventClass,(event['id'],'S2')).required_sections==5
     assert client.post('/api/events',json=dict(name='Ungültig',event_date='2026-10-01',class_sections={'S1':0})).status_code==422
-    assert 'class_sections.S1' in client.get('/ui/events').text
+    assert 'class_sections.S1' in client.get('/ui/events?tab=new').text
 
 
 def test_automatic_niw_and_correction_without_manual_driven_input(client):

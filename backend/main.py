@@ -1,6 +1,7 @@
 from backend.services.class_colors import COLORS, DEFAULTS, default_color
 from contextlib import asynccontextmanager
 import anyio
+import re
 from backend.services.settings import settings, display_time
 from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Request, Query
@@ -25,7 +26,7 @@ async def lifespan(app):
     Base.metadata.create_all(engine)
     with engine.begin() as conn:
         version = conn.exec_driver_sql('PRAGMA user_version').scalar()
-        if version not in (0,1,2,3,4,5,6,7,8): raise RuntimeError('Nicht unterstützte Datenbankversion')
+        if version not in (0,1,2,3,4,5,6,7,8,9): raise RuntimeError('Nicht unterstützte Datenbankversion')
         columns={r[1] for r in conn.exec_driver_sql('PRAGMA table_info(section_results)')}
         for column in ('error1','error2'):
             if column not in columns:
@@ -52,7 +53,9 @@ async def lifespan(app):
         if version < 8:
             for event_id, code in conn.exec_driver_sql('SELECT event_id,code FROM event_classes').fetchall():
                 conn.exec_driver_sql('UPDATE event_classes SET color=? WHERE event_id=? AND code=?',(default_color(code),event_id,code))
-        conn.exec_driver_sql('PRAGMA user_version=8')
+        if 'closed' not in {r[1] for r in conn.exec_driver_sql('PRAGMA table_info(events)')}:
+            conn.exec_driver_sql('ALTER TABLE events ADD COLUMN closed BOOLEAN NOT NULL DEFAULT 0')
+        conn.exec_driver_sql('PRAGMA user_version=9')
     yield
 
 app = FastAPI(title='Autotrial', version='0.1.0', lifespan=lifespan)
@@ -63,6 +66,16 @@ class DatabaseGate:
         if scope['type']!='http' or scope.get('path','').startswith('/static/'):
             return await self.app(scope,receive,send)
         async with scope['app'].state.database_gate:
+            if scope.get('method') in ('POST','PUT','PATCH','DELETE'):
+                match=re.fullmatch(r'/api/(events|entries|teams)/(\d+)(/.*)?',scope.get('path',''))
+                if match and not (match[1]=='events' and match[3]=='/reopen'):
+                    with SessionLocal() as session:
+                        model={'events':Event,'entries':Entry,'teams':Team}[match[1]]
+                        row=session.get(model,int(match[2]))
+                        event=row if model is Event else session.get(Event,row.event_id) if row else None
+                        if event and event.closed:
+                            response=JSONResponse({'detail':'Veranstaltung ist geschlossen. Zum Bearbeiten zuerst wieder öffnen.'},status_code=409)
+                            return await response(scope,receive,send)
             await self.app(scope,receive,send)
 
 app.add_middleware(DatabaseGate)
@@ -200,6 +213,33 @@ def create_event(data:EventInput,db:Session=Depends(get_db)):
     db.add_all(EventClass(event_id=row.id,code=code,color=default_color(code),required_sections=data.class_sections.get(code,data.section_count*data.rounds)) for code in dict.fromkeys([*CLASSES,*data.class_sections]))
     commit(db); return row
 
+@app.put('/api/events/{event_id}')
+def edit_event(event_id:int,data:EventInput,db:Session=Depends(get_db)):
+    row=get(db,Event,event_id)
+    # Only explicitly supplied fields; do not reset existing sections on metadata edits.
+    for key,value in data.model_dump(exclude={'class_sections'},exclude_unset=True).items():
+        setattr(row,key,value)
+    for code,count in data.class_sections.items():
+        cls=db.get(EventClass,(event_id,code))
+        if cls is None: raise HTTPException(422,'Neue Klassen unter Datenbank → Klassen anlegen.')
+        set_class_sections(db,cls,count)
+    commit(db)
+    return row
+
+@app.post('/api/events/{event_id}/close')
+def close_event(event_id:int,db:Session=Depends(get_db)):
+    row=get(db,Event,event_id)
+    row.closed=True
+    commit(db)
+    return {'status':'closed'}
+
+@app.post('/api/events/{event_id}/reopen')
+def reopen_event(event_id:int,db:Session=Depends(get_db)):
+    row=get(db,Event,event_id)
+    row.closed=False
+    commit(db)
+    return {'status':'open'}
+
 @app.post('/api/events/{event_id}/entries',status_code=201)
 def create_entry(event_id:int,data:EntryInput,db:Session=Depends(get_db)):
     get(db,Event,event_id); driver=get(db,Driver,data.driver_id)
@@ -237,8 +277,15 @@ def progress(event_id:int,db:Session=Depends(get_db)):
     get(db,Event,event_id); return class_progress(db,event_id)
 
 @app.get('/ui/events')
-def events_ui(request:Request,db:Session=Depends(get_db)):
-    return render(request,'events.html',classes=CLASSES,events=list(db.scalars(select(Event).order_by(Event.event_date.desc()))))
+def events_ui(request:Request,tab:str='overview',event_id:int|None=None,db:Session=Depends(get_db)):
+    if tab not in ('overview','new','edit','archive'): raise HTTPException(404,'Ansicht nicht gefunden')
+    editing=get(db,Event,event_id) if tab=='edit' and event_id else None
+    if tab=='edit' and editing is None:
+        saved=request.cookies.get('active_event','')
+        editing=db.get(Event,int(saved)) if saved.isdigit() else None
+    class_rows=list(db.scalars(select(EventClass).where(EventClass.event_id==editing.id).order_by(EventClass.code))) if editing else []
+    return render(request,'events.html',event_tab=tab,editing=editing,classes=CLASSES,class_rows=class_rows,
+                  events=list(db.scalars(select(Event).order_by(Event.event_date.desc()))))
 
 @app.get('/ui/master-data')
 def master_ui(request:Request,tab:str='drivers',q:str='',class_code:str='',
