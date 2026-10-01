@@ -1,3 +1,20 @@
+function fitBordcards(){
+  const pages=document.querySelectorAll('.bordcard-content');
+  if(!pages.length)return;
+  const ruler=document.createElement('div');
+  ruler.style.cssText='width:188mm;height:275mm;position:absolute;visibility:hidden';
+  document.body.append(ruler);
+  const {width,height}=ruler.getBoundingClientRect();
+  pages.forEach(content=>{
+    content.style.zoom='1';
+    const availableWidth=Math.min(width,content.parentElement.clientWidth);
+    content.style.width=availableWidth+'px';
+    const bounds=content.getBoundingClientRect();
+    content.style.zoom=String(Math.min(1,height/bounds.height,availableWidth/Math.max(bounds.width,content.scrollWidth)));
+  });
+  ruler.remove();
+}
+window.addEventListener('load',fitBordcards);
 function fitVehicleCards(){
   document.querySelectorAll('.vehicle-id-card').forEach(card=>{
     const body=card.querySelector('.vehicle-id-body');body.style.zoom='1';
@@ -9,6 +26,7 @@ function fitVehicleCards(){
 window.addEventListener('load',fitVehicleCards);
 function fitClassReports() {
   fitVehicleCards();
+  fitBordcards();
   // A4 landscape has 186 mm of printable height with 12 mm margins.
   const ruler=document.createElement('div');
   ruler.style.cssText='width:271mm;height:184mm;position:absolute;visibility:hidden';

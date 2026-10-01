@@ -284,6 +284,8 @@ def event_ui(event_id:int,page:str,request:Request,driver_id:int|None=Query(defa
         available_drivers=[d for d in available_drivers if d.id not in entered]
     return render(request,page+'.html',event=event,drivers=available_drivers,selected_driver_id=driver_id,vehicles=vehicles(db) if page=='checkin' else [],entries=entries,progress=class_progress(db,event_id),page=page,
                   result_groups=result_groups(db,event_id) if page=='results' else [],
+                  cards_ready=bool(entries) and all(e.technical_approved and e.paperwork_approved for e in entries),
+                  cards_pending=[e for e in entries if not e.technical_approved or not e.paperwork_approved],
                   participant_groups=participant_groups(db,event_id) if page=='participants' else [],
                   event_classes=list(db.scalars(select(EventClass).where(EventClass.event_id==event_id).order_by(EventClass.code))),
                   team_results=team_results(db,event_id) if page in ('teams','results') else [],
@@ -295,7 +297,24 @@ def card(entry_id:int,request:Request,db:Session=Depends(get_db)):
     if not entry.technical_approved or not entry.paperwork_approved:
         raise HTTPException(409,'Papierabnahme und technische Abnahme müssen für den Bordkartendruck bestätigt sein.')
     event=get(db,Event,entry.event_id)
-    return render(request,'card.html',entry=entry,event=event,required_sections=required_sections(db,event,entry.class_code))
+    return render_cards(request,db,event,[entry])
+
+def render_cards(request,db,event,entries):
+    cards=[dict(entry=entry,required_sections=required_sections(db,event,entry.class_code)) for entry in entries]
+    return render(request,'card.html',event=event,cards=cards)
+
+
+@app.get('/print/cards/{event_id}')
+def all_cards(event_id:int,request:Request,db:Session=Depends(get_db)):
+    event=get(db,Event,event_id)
+    entries=list(db.scalars(select(Entry).where(Entry.event_id==event_id).order_by(Entry.start_number)))
+    if not entries:
+        raise HTTPException(409,'Noch keine Nennungen. Es können keine Bordkarten gedruckt werden.')
+    pending=[str(e.start_number) for e in entries if not e.technical_approved or not e.paperwork_approved]
+    if pending:
+        raise HTTPException(409,'Alle Bordkarten können erst nach vollständiger Papier- und technischer Abnahme gedruckt werden. Offen: '+', '.join(pending))
+    return render_cards(request,db,event,entries)
+
 
 @app.get('/print/events/{event_id}/{class_code}')
 def results(event_id:int,class_code:str,request:Request,db:Session=Depends(get_db)):

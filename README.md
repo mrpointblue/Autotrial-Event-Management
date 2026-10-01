@@ -218,3 +218,25 @@ Oben rechts führt „Einstellungen“ zu Zeit, Datenbank und Logo. Zeitzone sow
 Der Datenbankexport verwendet die SQLite-Backup-Schnittstelle und enthält auch Einstellungen und Logo. Der Import akzeptiert passende Exporte mit Schema 7 bis 100 MB. Vor dem Ersetzen wird unter `/app/data/backups` automatisch eine herunterladbare Sicherung angelegt. Ein fehlgeschlagener Import setzt die Datenbank aus dieser Sicherung zurück. Während eines Imports werden andere Anfragen zurückgestellt. **Die Anwendung muss mit einem Uvicorn-Worker betrieben werden**, wie in Dockerfile/Compose vorgegeben, damit die Importsperre alle Schreibzugriffe umfasst. Sicherungsdateien bleiben im persistenten Docker-Volume, bis sie administrativ entfernt werden.
 
 Vereinslogos können als PNG/JPG bis 5 MB und 16 Megapixel hochgeladen werden. Die Anwendung prüft das Bild und speichert eine normalisierte PNG-Version in der Datenbank. Starter-, Ergebnis- und Mannschaftslisten nutzen das Logo; dauerhafte Fahrzeugkarten bleiben ohne Logo. Das MSC-Standardlogo kann wiederhergestellt oder der Druck ohne Logo gewählt werden.
+
+## Alle Bordkarten und Richter-Rückseite
+
+Unter **Nennung / Check-in → Genannte Fahrer → Alle Bordkarten drucken** entsteht
+ein Sammeldruck in Startnummernreihenfolge. Voraussetzung: mindestens eine Nennung
+und bestätigte Papier- sowie technische Abnahme für alle genannten Fahrer. Offene
+Abnahmen werden angezeigt; der Sammeldruck lässt keine Fahrer stillschweigend aus.
+Einzeldruck und Nachdruck bleiben verfügbar. Drucken verändert keine Nennungsdaten.
+
+Die Bordkarten verwenden die Sektionszahl der jeweiligen Veranstaltungsklasse.
+Auf jede Vorderseite mit bis zu fünf Sektionen folgt unmittelbar ihre Richter-Rückseite,
+auch bei mehreren Blättern pro Fahrer. Im Druckdialog **A4 Hochformat, beidseitig,
+an langer Kante wenden** wählen. Die Anwendung kann den Duplexmodus des Druckers
+nicht selbst einschalten. Vorder- und Rückseiten werden auf die bedruckbare Seite angepasst.
+
+Die Richterhilfe fasst die für den Sektionsbetrieb relevanten Bestimmungen des
+Reglements 2026 (Stand 09.03.2026) zusammen und verlinkt das Original. Sie enthält
+Fehlerpunkte, Torregeln, Sicherheitsvorgaben, Abbruchgründe, die 900-Punkte-Abbruchgrenze
+und den klassenabhängigen Mindestumfang für 70 %. Sonderbestimmungen der Veranstaltung
+bleiben zu beachten. Die unvollständige Fremdhilfe-Formulierung in § 6.1 ist als
+Klärungspunkt mit dem Fahrtleiter gekennzeichnet. Es wird keine zusätzliche
+Strafentscheidung aus der Druckfunktion abgeleitet.

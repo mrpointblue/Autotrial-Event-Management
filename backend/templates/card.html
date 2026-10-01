@@ -1,1 +1,23 @@
-{% extends 'print_base.html' %}{% block content %}{% for offset in range(0,required_sections,5) %}<article class="paper"><h1>Bordkarte · #{{ entry.start_number }}</h1><h2>{{ event.name }} · {{ event.event_date }}</h2><p><strong>{{ entry.driver_name }}</strong> · {{ entry.class_code }} · HCF {{ entry.hcf|hcf }}</p><p>{{ entry.vehicle_snapshot.manufacturer }} {{ entry.vehicle_snapshot.model }} · Beifahrer: {{ entry.codriver or '—' }} · {{ required_sections }} vorgeschriebene Sektionen · Blatt {{ loop.index }}/{{ ((required_sections+4)//5) }}</p><table class="paper-table"><thead><tr><th>Sektion</th><th>Fehler1 (Rohpunkte)</th><th>Fehler2 (ohne HCF)</th><th>Gefahren?</th><th>Kürzel</th></tr></thead><tbody>{% for s in range(offset+1,([offset+5,required_sections]|min)+1) %}<tr><td>{{ s }}</td><td></td><td></td><td>Ja / Nein</td><td></td></tr>{% endfor %}</tbody></table><p>Nur Rückwärtsfahren, Kugel, Torstange und Fuß werden durch den HCF geteilt. Sonstige Fehler bleiben unverändert. Diese Rohpunkte unter Fehler1 eintragen. Alle übrigen Fehler unter Fehler2 eintragen. Die Software berechnet Fehler1 ÷ HCF + Fehler2.</p><p>Rückgabe / Bemerkungen: ___________________________________________________</p><small>Bordkarte {{ entry.id }} · Reglement {{ event.rules_version }} · Grundlayout, mit dem Veranstalter abzustimmen</small></article>{% endfor %}{% endblock %}
+{% extends 'print_base.html' %}
+{% block print_style %}<link rel="stylesheet" href="/static/cards-print.css?v=duplex-1">{% endblock %}
+{% block content %}
+<aside class="no-print card-print-help"><strong>{{ cards|length }} Bordkarte{{ 'n' if cards|length != 1 else '' }} mit Richterinformationen</strong><p>A4 Hochformat · Beidseitig drucken · An langer Kante wenden. Jede Vorderseite wird unmittelbar von ihrer Rückseite gefolgt. Bei mehr als fünf Sektionen entstehen mehrere Blätter je Fahrer.</p></aside>
+{% for card in cards %}{% set entry=card.entry %}{% set required_sections=card.required_sections %}
+{% for offset in range(0,required_sections,5) %}{% set sheet_number=loop.index %}{% set sheet_count=(required_sections+4)//5 %}
+<article class="bordcard-page bordcard-front" data-entry-id="{{ entry.id }}" data-sheet="{{ sheet_number }}"><div class="bordcard-content">
+<header class="bordcard-header"><div><h1>Bordkarte · #{{ entry.start_number }}</h1><h2>{{ event.name }}</h2><p>{{ event.event_date.strftime('%d.%m.%Y') }} · Blatt {{ sheet_number }}/{{ sheet_count }}</p></div>{% if logo_url %}<img src="{{ logo_url }}" alt="Vereinslogo">{% endif %}</header>
+<p class="bordcard-driver"><strong>{{ entry.driver_name }}</strong> · Klasse {{ entry.class_code }} · HCF {{ entry.hcf|hcf }}</p>
+<p>{{ entry.vehicle_snapshot.manufacturer }} {{ entry.vehicle_snapshot.model }} · Beifahrer: {{ entry.codriver or '—' }}</p>
+<p>{{ required_sections }} vorgeschriebene Sektionen · Sektionen {{ offset+1 }} bis {{ [offset+5,required_sections]|min }}</p>
+<table class="bordcard-table"><colgroup><col style="width:13%"><col style="width:28%"><col style="width:28%"><col style="width:16%"><col style="width:15%"></colgroup><thead><tr><th>Sektion</th><th>Fehler1<br>(Rohpunkte)</th><th>Fehler2<br>(ohne HCF)</th><th>Gefahren?</th><th>Kürzel</th></tr></thead><tbody>{% for s in range(offset+1,([offset+5,required_sections]|min)+1) %}<tr><td>{{ s }}</td><td></td><td></td><td>Ja / Nein</td><td></td></tr>{% endfor %}</tbody></table>
+<p><strong>Fehler1:</strong> Rohpunktsumme für Rückwärtsfahren, Kugel, Torstange und Fuß. <strong>Fehler2:</strong> alle übrigen Fehlerpunkte. Auf der Bordkarte nicht durch den HCF teilen. Berechnung in der Auswertung: Fehler1 ÷ HCF + Fehler2.</p>
+<p><strong>Richterinformationen und Sonderfälle: siehe Rückseite.</strong> Nichtbefahren ausdrücklich kennzeichnen; leere Felder sind keine Nullwertung.</p>
+<div class="bordcard-notes">Rückgabe / Bemerkungen:<div></div><div></div></div>
+<footer>Bordkarte {{ entry.id }} · #{{ entry.start_number }} · Blatt {{ sheet_number }}/{{ sheet_count }} · Reglement {{ event.rules_version }}</footer>
+</div></article>
+<article class="bordcard-page bordcard-back" data-entry-id="{{ entry.id }}" data-sheet="{{ sheet_number }}"><div class="bordcard-content">
+<header><h1>Informationen für Sektionsrichter</h1><p>#{{ entry.start_number }} · {{ entry.driver_name }} · Klasse {{ entry.class_code }} · Blatt {{ sheet_number }}/{{ sheet_count }}</p></header>
+{% include 'card_judge_info.html' %}
+</div></article>
+{% endfor %}{% endfor %}
+{% endblock %}
