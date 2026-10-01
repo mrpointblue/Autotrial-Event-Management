@@ -61,7 +61,7 @@ async def lifespan(app):
         conn.exec_driver_sql('PRAGMA user_version=10')
     yield
 
-app = FastAPI(title='Autotrial', version='0.1.0', lifespan=lifespan)
+app = FastAPI(title='Autotrial', version='1.0.0', lifespan=lifespan)
 # Hold the gate through response completion and dependency cleanup, including downloads.
 class DatabaseGate:
     def __init__(self,app): self.app=app
@@ -144,7 +144,7 @@ def help_page(request:Request):
 @app.get('/health')
 def health(db:Session=Depends(get_db)):
     db.execute(text('SELECT 1'))
-    return {'status':'ok','version':'0.1.0'}
+    return {'status':'ok','version':'1.0.0'}
 
 @app.get('/')
 def root(): return RedirectResponse('/ui/events')

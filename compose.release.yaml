@@ -1,8 +1,7 @@
 name: autotrial
 services:
   app:
-    build: .
-    image: autotrial:1.0.0
+    image: ghcr.io/mrpointblue/autotrial-event-management:1.0.0
     ports:
       - "${AUTOTRIAL_BIND:-127.0.0.1}:${AUTOTRIAL_PORT:-8020}:8000"
     environment:

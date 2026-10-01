@@ -1,12 +1,21 @@
-# Autotrial · 0.1.0
+# Autotrial · 1.0.0
 
 Eigenständiges Schwesterprojekt der Quad Parallel Race Software: Nennung,
-Papierbordkarten und nachträgliche Auswertung. Grundgerüst mit durchgängigem
-Arbeitsablauf; noch keine abgenommene Turniersoftware.
+Papierbordkarten und nachträgliche Auswertung. Erste stabile Version 1.0.0.
 
 ## Docker-only starten
 
 Docker Engine / Docker Desktop mit Compose ist die einzige Laufzeitvoraussetzung.
+
+Fertiges Image aus der GitHub Container Registry (AMD64 und ARM64):
+
+```sh
+docker compose -f compose.release.yaml up -d --wait
+```
+
+Die Datei `compose.release.yaml` ist auch als Download bei der GitHub-Version
+`v1.0.0` verfügbar. Sie verwendet fest `ghcr.io/mrpointblue/autotrial-event-management:1.0.0`.
+Alternativ direkt aus dem Repository bauen:
 
 ```sh
 docker compose up -d --build --wait
@@ -100,8 +109,8 @@ Keine Renn-, LOGO-, Monitor- oder Marshal-Module übernommen.
 Tests komplett in Docker:
 
 ```sh
-docker build -t autotrial:0.1.0 .
-docker run --rm -v "$PWD/tests:/app/tests:ro" -v "$PWD/requirements-dev.txt:/app/requirements-dev.txt:ro" --user root autotrial:0.1.0 sh -c 'pip install -r requirements-dev.txt && python -m pytest -q'
+docker build -t autotrial:1.0.0 .
+docker run --rm -v "$PWD/tests:/app/tests:ro" -v "$PWD/requirements-dev.txt:/app/requirements-dev.txt:ro" --user root autotrial:1.0.0 sh -c 'pip install -r requirements-dev.txt && python -m pytest -q'
 ```
 
 Der zusätzliche Paketdownload ist nur für Tests erforderlich. CI prüft zusätzlich
