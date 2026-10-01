@@ -119,7 +119,7 @@ def validate_database(path):
     try:
         with sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True) as db:
             db.execute('PRAGMA trusted_schema=OFF')
-            if db.execute('PRAGMA user_version').fetchone()[0]!=7: raise ValueError('Bitte eine Datenbank aus der aktuellen Autotrial-Version importieren.')
+            if db.execute('PRAGMA user_version').fetchone()[0]!=8: raise ValueError('Bitte eine Datenbank aus der aktuellen Autotrial-Version importieren.')
             if db.execute('PRAGMA integrity_check').fetchone()[0]!='ok' or db.execute('PRAGMA foreign_key_check').fetchone(): raise ValueError('Die Datenbank ist beschädigt oder enthält ungültige Zuordnungen.')
             if db.execute("SELECT 1 FROM sqlite_master WHERE type IN ('trigger','view') OR upper(sql) LIKE '%CREATE VIRTUAL TABLE%'").fetchone(): raise ValueError('Die Datenbank enthält nicht unterstützte Datenbankobjekte.')
             for table in Base.metadata.sorted_tables:

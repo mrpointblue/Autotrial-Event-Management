@@ -421,3 +421,10 @@ const browserTime=document.getElementById('use-browser-time');
 if(browserTime)browserTime.addEventListener('click',async()=>{browserTime.disabled=true;try{await api('/api/settings/time',{source:'browser',target:new Date().toISOString()});location.reload();}catch(error){show(error.message,true);}finally{browserTime.disabled=false;}});
 const settingsClock=document.getElementById('settings-clock');
 if(settingsClock){const start=Date.now(),epoch=Number(settingsClock.dataset.epoch)*1000;setInterval(()=>{settingsClock.textContent=new Intl.DateTimeFormat('de-DE',{dateStyle:'medium',timeStyle:'long',timeZone:settingsClock.dataset.zone}).format(new Date(epoch+Date.now()-start));},1000);}
+
+const entryClassColor=document.getElementById('entry-class-color');
+if(entryClassColor){
+  const preview=document.getElementById('entry-class-preview');
+  const update=()=>{const option=entryClassColor.selectedOptions[0];preview.className='class-marker class-marker-'+(option.dataset.color||'neutral');preview.textContent=option.value?option.textContent:'Klasse auswählen, um die Sektionsfarbe zu sehen.';};
+  entryClassColor.addEventListener('change',update);update();
+}

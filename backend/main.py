@@ -1,3 +1,4 @@
+from backend.services.class_colors import COLORS, DEFAULTS, default_color
 from contextlib import asynccontextmanager
 import anyio
 from backend.services.settings import settings, display_time
@@ -24,7 +25,7 @@ async def lifespan(app):
     Base.metadata.create_all(engine)
     with engine.begin() as conn:
         version = conn.exec_driver_sql('PRAGMA user_version').scalar()
-        if version not in (0,1,2,3,4,5,6,7): raise RuntimeError('Nicht unterstützte Datenbankversion')
+        if version not in (0,1,2,3,4,5,6,7,8): raise RuntimeError('Nicht unterstützte Datenbankversion')
         columns={r[1] for r in conn.exec_driver_sql('PRAGMA table_info(section_results)')}
         for column in ('error1','error2'):
             if column not in columns:
@@ -46,7 +47,12 @@ async def lifespan(app):
             conn.exec_driver_sql('ALTER TABLE event_classes ADD COLUMN required_sections INTEGER NOT NULL DEFAULT 5')
         if version < 6:
             conn.exec_driver_sql('UPDATE event_classes SET required_sections=(SELECT section_count*rounds FROM events WHERE events.id=event_classes.event_id)')
-        conn.exec_driver_sql('PRAGMA user_version=7')
+        if 'color' not in class_columns:
+            conn.exec_driver_sql("ALTER TABLE event_classes ADD COLUMN color VARCHAR NOT NULL DEFAULT 'neutral'")
+        if version < 8:
+            for event_id, code in conn.exec_driver_sql('SELECT event_id,code FROM event_classes').fetchall():
+                conn.exec_driver_sql('UPDATE event_classes SET color=? WHERE event_id=? AND code=?',(default_color(code),event_id,code))
+        conn.exec_driver_sql('PRAGMA user_version=8')
     yield
 
 app = FastAPI(title='Autotrial', version='0.1.0', lifespan=lifespan)
@@ -95,6 +101,12 @@ def render(request,name,**context):
                 active=session.get(Event,int(saved))
             if active is not None: context['event']=active
     if clear: context.pop('event',None)
+    context['color_names']=COLORS
+    context['default_class_colors']=DEFAULTS
+    if active is not None:
+        with SessionLocal() as session:
+            context['class_colors']={c.code:c.color for c in session.scalars(select(EventClass).where(EventClass.event_id==active.id))}
+    else: context['class_colors']={}
     config=settings()
     context['logo_url']='/ui/settings/logo' if config['logo_enabled'] else None
     response=templates.TemplateResponse(request=request,name=name,context=context)
@@ -108,6 +120,10 @@ async def error_page(request,exc):
     if request.url.path.startswith('/api/') or request.url.path=='/health':
         return JSONResponse({'detail':exc.detail},status_code=exc.status_code)
     return templates.TemplateResponse(request=request,name='error.html',context={'detail':exc.detail},status_code=exc.status_code)
+
+@app.get('/ui/help')
+def help_page(request:Request):
+    return render(request,'help.html',page='help')
 
 @app.get('/health')
 def health(db:Session=Depends(get_db)):
@@ -181,7 +197,7 @@ def linked_vehicles(driver_id:int,db:Session=Depends(get_db)):
 @app.post('/api/events',status_code=201)
 def create_event(data:EventInput,db:Session=Depends(get_db)):
     row=Event(**data.model_dump(exclude={'class_sections'})); db.add(row); db.flush()
-    db.add_all(EventClass(event_id=row.id,code=code,required_sections=data.class_sections.get(code,data.section_count*data.rounds)) for code in dict.fromkeys([*CLASSES,*data.class_sections]))
+    db.add_all(EventClass(event_id=row.id,code=code,color=default_color(code),required_sections=data.class_sections.get(code,data.section_count*data.rounds)) for code in dict.fromkeys([*CLASSES,*data.class_sections]))
     commit(db); return row
 
 @app.post('/api/events/{event_id}/entries',status_code=201)
@@ -468,7 +484,8 @@ def add_event_class(event_id:int,data:EventClassInput,db:Session=Depends(get_db)
         set_class_sections(db,row,data.required_sections)
         row.section_group=data.section_group
         row.trophy_count=data.trophy_count
-    else: db.add(EventClass(event_id=event_id,**data.model_dump()))
+        if data.color is not None: row.color=data.color
+    else: db.add(EventClass(event_id=event_id,**(data.model_dump() | {'color':data.color or default_color(data.code)})))
     commit(db)
     return {'status':'saved'}
 

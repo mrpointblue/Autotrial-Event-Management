@@ -10,3 +10,5 @@
 
 /* Class highlights from the supplied 21.09.2025 board cards; unlisted classes stay neutral. */
 .class-marker{display:inline-block;padding:1mm 3mm;border:1px solid #555;border-radius:1mm;color:#111;white-space:nowrap;print-color-adjust:exact;-webkit-print-color-adjust:exact}.class-marker-yellow{background:#fff176}.class-marker-pink{background:#f2a6d5}.class-marker-green{background:#8ed8aa}.class-marker-neutral{background:#fff}
+
+.class-marker-blue{background:#93c5fd}.class-marker-orange{background:#fdba74}.class-marker-purple{background:#c4b5fd}

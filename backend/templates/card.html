@@ -1,10 +1,9 @@
 {% extends 'print_base.html' %}
-{% block print_style %}<link rel="stylesheet" href="/static/cards-print.css?v=class-colors-1">{% endblock %}
+{% block print_style %}<link rel="stylesheet" href="/static/cards-print.css?v=class-colors-2">{% endblock %}
 {% block content %}
 <aside class="no-print card-print-help"><strong>{{ cards|length }} Bordkarte{{ 'n' if cards|length != 1 else '' }} mit Richterinformationen</strong><p>A4 Querformat · Beidseitig drucken · An kurzer Kante wenden. Jede Vorderseite wird unmittelbar von ihrer Rückseite gefolgt. Bis zu zehn Sektionen je Blatt; zusätzliche Leerzeilen dienen als Schreibreserve.</p></aside>
 {% import 'penalties.html' as penalty_definitions %}{% set categories=penalty_definitions.categories %}
-{% set class_colors={'Q1':'yellow','Q2N':'yellow','Q2-N':'yellow','S1':'yellow','S2':'yellow','Q2':'pink','V1':'pink','O2':'green','Q3':'green','J':'green','N':'green'} %}
-{% for card in cards %}{% set entry=card.entry %}{% set required_sections=card.required_sections %}{% set class_color=class_colors.get(entry.class_code|upper|replace(' ',''),'neutral') %}
+{% for card in cards %}{% set entry=card.entry %}{% set required_sections=card.required_sections %}{% set class_color=class_colors.get(entry.class_code,'neutral') %}
 {% for offset in range(0,required_sections,10) %}{% set sheet_number=loop.index %}{% set sheet_count=(required_sections+9)//10 %}
 <article class="bordcard-page bordcard-front" data-entry-id="{{ entry.id }}" data-sheet="{{ sheet_number }}"><div class="bordcard-content">
 <div class="reference-event">{{ event.name }} · {{ event.event_date.strftime('%d.%m.%Y') }}<span>Blatt {{ sheet_number }}/{{ sheet_count }}</span></div>
