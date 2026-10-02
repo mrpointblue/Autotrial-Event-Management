@@ -2,7 +2,7 @@ name: autotrial
 services:
   app:
     build: .
-    image: autotrial:1.0.0
+    image: autotrial:1.1.0-dev
     ports:
       - "${AUTOTRIAL_BIND:-127.0.0.1}:${AUTOTRIAL_PORT:-8020}:8000"
     environment:

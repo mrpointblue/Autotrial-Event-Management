@@ -10,7 +10,13 @@ from backend.main import app
 @pytest.fixture
 def client():
     Base.metadata.drop_all(engine)
-    with TestClient(app) as c: yield c
+    with TestClient(app) as c:
+        from backend.services.identity import has_users
+        from backend.database import DATA_DIR
+        if not has_users():
+            assert c.post('/setup',data=dict(username='testadmin',password='test-password-long',setup_token=(DATA_DIR/'setup-token.txt').read_text()),follow_redirects=False).status_code==303
+        assert c.post('/login',data=dict(username='testadmin',password='test-password-long'),follow_redirects=False).status_code==303
+        yield c
 
 def post(c,path,data):
     if path=='vehicles' and 'hcf' in data: data.update(hcf_mode='manual',hcf_note='Bestandsfahrzeug, Abnahme bestätigt')

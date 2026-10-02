@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import date, datetime, timezone
+from uuid import uuid4
 from decimal import Decimal
 from sqlalchemy import Boolean, CheckConstraint, Date, ForeignKey, Index, Integer, JSON, Numeric, String, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -8,6 +9,7 @@ CLASSES = ('O1','O2','S1','S2','S3','V1','V2','P','J','Q1','Q2a','Q2b','SbS')
 
 class Driver(Base):
     __tablename__ = 'drivers'
+    uid: Mapped[str] = mapped_column(String,default=lambda: str(uuid4()),unique=True)
     id: Mapped[int] = mapped_column(primary_key=True)
     start_number: Mapped[int] = mapped_column(unique=True)
     name: Mapped[str] = mapped_column(String(150))
@@ -19,6 +21,7 @@ class Driver(Base):
 
 class Vehicle(Base):
     __tablename__ = 'vehicles'
+    uid: Mapped[str] = mapped_column(String,default=lambda: str(uuid4()),unique=True)
     id: Mapped[int] = mapped_column(primary_key=True)
     manufacturer: Mapped[str] = mapped_column(String(100))
     model: Mapped[str] = mapped_column(String(100))
@@ -47,6 +50,7 @@ class DriverVehicle(Base):
 
 class Event(Base):
     __tablename__ = 'events'
+    uid: Mapped[str] = mapped_column(String,default=lambda: str(uuid4()),unique=True)
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(150))
     event_date: Mapped[date] = mapped_column(Date)
@@ -55,11 +59,14 @@ class Event(Base):
     section_count: Mapped[int]
     rounds: Mapped[int] = mapped_column(default=1)
     closed: Mapped[bool] = mapped_column(default=False,server_default='0')
+    revision: Mapped[int] = mapped_column(default=1,server_default='1')
+    updated_at: Mapped[str] = mapped_column(String,default=lambda: datetime.now(timezone.utc).isoformat(),server_default='')
     rules_version: Mapped[str] = mapped_column(default='ADAC-SH-2026-03-09')
     __table_args__ = (CheckConstraint('section_count BETWEEN 1 AND 30'), CheckConstraint('rounds BETWEEN 1 AND 10'))
 
 class Entry(Base):
     __tablename__ = 'entries'
+    uid: Mapped[str] = mapped_column(String,default=lambda: str(uuid4()),unique=True)
     id: Mapped[int] = mapped_column(primary_key=True)
     event_id: Mapped[int] = mapped_column(ForeignKey('events.id'))
     driver_id: Mapped[int] = mapped_column(ForeignKey('drivers.id'))
@@ -91,6 +98,7 @@ class Entry(Base):
 
 class SectionResult(Base):
     __tablename__ = 'section_results'
+    uid: Mapped[str] = mapped_column(String,default=lambda: str(uuid4()),unique=True)
     id: Mapped[int] = mapped_column(primary_key=True)
     entry_id: Mapped[int] = mapped_column(ForeignKey('entries.id'))
     ordinal: Mapped[int]
@@ -104,6 +112,7 @@ class SectionResult(Base):
 
 class EntryChange(Base):
     __tablename__ = 'entry_changes'
+    uid: Mapped[str] = mapped_column(String,default=lambda: str(uuid4()),unique=True)
     id: Mapped[int] = mapped_column(primary_key=True)
     entry_id: Mapped[int] = mapped_column(ForeignKey('entries.id'),index=True)
     changed_at: Mapped[str]
@@ -123,6 +132,7 @@ class EventClass(Base):
 
 class Team(Base):
     __tablename__ = 'teams'
+    uid: Mapped[str] = mapped_column(String,default=lambda: str(uuid4()),unique=True)
     id: Mapped[int] = mapped_column(primary_key=True)
     event_id: Mapped[int] = mapped_column(ForeignKey('events.id'))
     name: Mapped[str] = mapped_column(String(100))
@@ -140,3 +150,27 @@ class AppSetting(Base):
     __tablename__ = 'app_settings'
     key: Mapped[str] = mapped_column(String(50),primary_key=True)
     value: Mapped[dict] = mapped_column(JSON)
+
+# Conservative revision tracking includes changes to shared master data/settings.
+from sqlalchemy import event as orm_event, select
+from sqlalchemy.orm import Session
+@orm_event.listens_for(Session, 'before_flush')
+def track_revision(session, flush_context, instances):
+    if session.info.get('importing'): return
+    changes=list(session.new)+list(session.deleted)+[r for r in session.dirty if session.is_modified(r,include_collections=True)]
+    if not changes:return
+    now=datetime.now(timezone.utc).isoformat()
+    shared=any(isinstance(r,(Driver,Vehicle,DriverVehicle,AppSetting)) for r in changes)
+    affected=set()
+    for changed in changes:
+        if isinstance(changed,Event):affected.add(changed.id)
+        elif hasattr(changed,'event_id'):affected.add(changed.event_id)
+        elif isinstance(changed,(SectionResult,EntryChange,TeamMember)):
+            entry=session.get(Entry,changed.entry_id) if changed.entry_id is not None else None
+            if entry:affected.add(entry.event_id)
+    query=select(Event)
+    if not shared:query=query.where(Event.id.in_([i for i in affected if i is not None]))
+    for row in session.scalars(query):
+        if row not in session.deleted:
+            row.revision+=1
+            row.updated_at=now

@@ -24,3 +24,5 @@
 @media(max-width:1050px){.penalty-groups{display:flex;overflow-x:auto;gap:14px;padding-bottom:8px}.penalty-group.with-hcf{flex:0 0 420px}.penalty-group.without-hcf{flex:0 0 710px}}@media(max-width:600px){.score-actions{align-items:stretch;flex-direction:column}.card-entry #lookup-form{flex-wrap:wrap}.penalty-group{padding:10px}.card-options label{min-width:0;flex-basis:100%}}
 
 .class-marker{display:inline-block;padding:4px 10px;border:1px solid #64748b;border-radius:4px;color:#111;white-space:nowrap;print-color-adjust:exact;-webkit-print-color-adjust:exact}.class-marker-yellow{background:#fff176}.class-marker-red{background:#dc2626;color:#fff}.class-marker-green{background:#8ed8aa}.class-marker-neutral{background:#fff}.class-marker-blue{background:#93c5fd}.class-marker-orange{background:#fdba74}
+
+.identity-bar{display:flex;align-items:center;gap:20px;padding:8px 24px;background:#e2e8f0;flex-wrap:wrap}.identity-bar form{margin-left:auto}.identity-bar button{margin:0;padding:7px 12px}textarea{width:100%;min-height:80px;padding:10px;font:inherit}

@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 from PIL import Image, UnidentifiedImageError
-from backend.database import Base, DATA_DIR, engine, get_db
+from backend.database import Base, DATA_DIR, engine, get_db, tenant_dir
 from backend.services.settings import settings, save_settings, app_now
 
 router=APIRouter()
@@ -20,7 +20,7 @@ MAX_DATABASE=100*1024*1024
 Image.MAX_IMAGE_PIXELS=16_000_000
 
 def backup_dir():
-    path=DATA_DIR/'backups';path.mkdir(exist_ok=True);return path
+    path=tenant_dir()/'backups';path.mkdir(exist_ok=True);return path
 
 
 def database_backup(path):
@@ -108,7 +108,7 @@ def default_logo(db:Session=Depends(get_db)):
 
 @router.get('/ui/settings/database/export')
 def export_database():
-    file=tempfile.NamedTemporaryFile(suffix='.sqlite3',dir=DATA_DIR,delete=False);file.close();path=Path(file.name)
+    file=tempfile.NamedTemporaryFile(suffix='.sqlite3',dir=tenant_dir(),delete=False);file.close();path=Path(file.name)
     try: database_backup(path)
     except Exception: path.unlink(missing_ok=True);raise
     return FileResponse(path,filename='autotrial-'+datetime.now().strftime('%Y%m%d-%H%M%S')+'.sqlite3',
@@ -119,7 +119,7 @@ def validate_database(path):
     try:
         with sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True) as db:
             db.execute('PRAGMA trusted_schema=OFF')
-            if db.execute('PRAGMA user_version').fetchone()[0]!=10: raise ValueError('Bitte eine Datenbank aus der aktuellen Autotrial-Version importieren.')
+            if db.execute('PRAGMA user_version').fetchone()[0]!=11: raise ValueError('Bitte eine Datenbank aus der aktuellen Autotrial-Version importieren.')
             if db.execute('PRAGMA integrity_check').fetchone()[0]!='ok' or db.execute('PRAGMA foreign_key_check').fetchone(): raise ValueError('Die Datenbank ist beschädigt oder enthält ungültige Zuordnungen.')
             if db.execute("SELECT 1 FROM sqlite_master WHERE type IN ('trigger','view') OR upper(sql) LIKE '%CREATE VIRTUAL TABLE%'").fetchone(): raise ValueError('Die Datenbank enthält nicht unterstützte Datenbankobjekte.')
             for table in Base.metadata.sorted_tables:
@@ -146,7 +146,7 @@ def validate_database(path):
 @router.post('/ui/settings/database/import')
 async def import_database(database_file:UploadFile=File(...),confirmation:str=Form(...)):
     if confirmation!='ERSETZEN': raise HTTPException(422,'Zum Bestätigen ERSETZEN eingeben.')
-    temp=tempfile.NamedTemporaryFile(suffix='.sqlite3',dir=DATA_DIR,delete=False);path=Path(temp.name)
+    temp=tempfile.NamedTemporaryFile(suffix='.sqlite3',dir=tenant_dir(),delete=False);path=Path(temp.name)
     try:
         size=0
         while chunk:=await database_file.read(1024*1024):

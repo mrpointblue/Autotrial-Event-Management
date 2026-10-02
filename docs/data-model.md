@@ -21,7 +21,7 @@ Veranstaltungsklasse und HCF werden im Entry und seinem Snapshot konsistent geä
 `EntryChange` speichert UTC-Zeit, Änderungsgrund sowie Vorher-/Nachher-Werte für
 explizite Nennungskorrekturen. Die zusätzliche Tabelle wird beim Start angelegt;
 bestehende Tabellen und Nennungen werden nicht migriert oder überschrieben.
-Kein Benutzername wird erfasst, solange keine Benutzeranmeldung vorhanden ist.
+Die Anmeldung wird zentral verwaltet; ältere Änderungsprotokolle bleiben unverändert.
 
 ## Zwei unabhängige Zustände
 
@@ -47,7 +47,7 @@ Ränge werden nach der auf zwei Nachkommastellen gerundeten Gesamtsumme bestimmt
 
 Entry-Versionen verhindern das stille Überschreiben veralteter Eingabemasken.
 Unique-Constraints und Transaktionen sichern Nennungen und Standardzuordnungen.
-Fremdschlüssel sind aktiv. Schema-Version: SQLite `user_version = 4`.
+Fremdschlüssel sind aktiv. Aktuelle Schema-Version: SQLite `user_version = 11`.
 
 Fehler1 wird aus allen getrennt erfassten Sektionen summiert und einmal durch den
 HCF des Entry-Snapshots geteilt. Fehler2 und etwaige alte Endwerte werden addiert.
@@ -90,3 +90,31 @@ Kategorien nach Reglement §6.1: Rückwärtsfahren 8; Kugel 20; Torstange 40; Fu
 In der Summenerfassung wird gefahren = vorgeschrieben − Nichtbefahren berechnet. Nur die Kategorie Nichtbefahren zählt hierfür, nicht die beiden anderen 900-Punkte-Kategorien. Weniger als 70 % führt automatisch zu NiW; genau 70 % bleibt in Wertung. Automatische Gründe werden mit `card_summary.auto_niw` markiert und bei Korrekturen neu berechnet. Manuelle Ausschlussgründe bleiben erhalten. Klassenwechsel und Änderungen der vorgeschriebenen Anzahl berechnen Summenkarten neu und erhöhen die Version gegen veraltete Eingaben. Wenn die gespeicherte Anzahl Nichtbefahren die neue Vorgabe übersteigt, bleibt die Karte zur Korrektur offen. Alte Sektionskarten bleiben bei geänderter Vorgabe zur Prüfung offen.
 
 Bei Rohpunktsummen gibt es eine separate Anzahl Nichtbefahren; die Strafpunkte selbst müssen bereits in Fehler2 enthalten sein. Das alte Feld gefahrene Sektionen ist aus dem Formular entfernt; ältere API-Clients werden weiterhin unterstützt. Bordkarten drucken die klassenspezifische Gesamtzahl, mit höchstens fünf Zeilen je Blatt.
+
+
+## Veranstalter und Identität (Schema 11)
+
+Das Identitätsverzeichnis `identity.sqlite3` enthält Veranstalter (UUID, Name,
+Anschrift, Kontakt), Benutzer (scrypt-Passworthash, Rolle, Veranstalter-ID), gehashte
+Sitzungstoken und Anmeldebegrenzung. Der Standard-Veranstalter verwendet die vorhandene
+`autotrial.sqlite3`; weitere Veranstalter verwenden `organizers/<UUID>/autotrial.sqlite3`.
+Alle Fachdaten einschließlich Einstellungen und Logo gehören strukturell zu genau
+einem solchen Bereich. Es gibt keine mandantenübergreifenden Fremdschlüssel.
+
+Ein ASGI-Middleware setzt den Bereich ausschließlich aus der geprüften Sitzung.
+ContextVar-basierte Verbindungswahl gilt auch in FastAPI-Workerthreads und in allen
+Services, Druck- und Sicherungsrouten. Ein nicht privilegierter Benutzer kann den
+Bereich nicht über URL- oder Formulardaten wählen. Ressourcen-IDs gelten lokal; UUIDs
+für Veranstaltungen, Fahrer, Fahrzeuge, Nennungen, Ergebnisse, Protokolle und Teams
+sind die transportablen Identitäten.
+
+`Event.revision` und `updated_at` werden konservativ auch bei Änderungen an gemeinsam
+verwendeten Stammdaten aktualisiert. Importierte Versionen bleiben erhalten.
+`.trialdata` Format 1 ist begrenztes UTF-8-JSON (20 MB), kein SQL und kein Archiv.
+Referenzen verwenden UUIDs und werden beim Import auf lokale IDs umgesetzt. Sämtliche
+Fachdaten des Imports werden in einer Transaktion geschrieben. Versionskonflikte
+werden nur diagnostiziert; eine Zusammenführung ist separat nachrüstbar.
+
+Die gemeinsame Ausgangsversion wird unter `AppSetting.transfer:<Event-UUID>` als
+SHA-256-Inhaltshash gespeichert. Der Hash erkennt Änderungen, ist jedoch keine
+kryptografische Signatur und bestätigt nicht die Herkunft einer Datei.

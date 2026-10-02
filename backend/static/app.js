@@ -442,3 +442,18 @@ if(closedEvent){
     }
   });
 }
+
+const importChoice=document.getElementById('event-import-choice');
+if(importChoice){
+ const change=()=>{const yes=importChoice.value==='yes';document.getElementById('event-import-form').hidden=!yes;document.getElementById('event-form').closest('section').hidden=yes;};
+ importChoice.addEventListener('change',change);change();
+}
+
+if(document.body.dataset.readOnly){
+ document.querySelectorAll('form').forEach(form=>{
+  if(form.dataset.api||form.method.toLowerCase()==='post'&&form.getAttribute('action')!=='/logout'||['score-form','entry-edit-form','link-form'].includes(form.id)){
+   const fields=document.createElement('fieldset');fields.disabled=true;fields.style.border='0';
+   while(form.firstChild)fields.append(form.firstChild);form.append(fields);
+  }
+ });
+}

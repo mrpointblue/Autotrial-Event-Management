@@ -20,13 +20,24 @@ from backend.services.hcf import calculate_hcf, vehicle_values, round_hcf, forma
 from backend.schemas import HcfInput
 from backend.services.scoring import save_scores, class_progress, ranked_results, result_groups, score_totals, required_sections, recheck_summary
 
-@asynccontextmanager
-async def lifespan(app):
-    app.state.database_gate=anyio.Lock()
+def initialize_database():
+    # Take a recoverable snapshot before touching a pre-upgrade store.
+    import sqlite3
+    from backend.database import tenant_dir
+    path=Path(str(engine.url.database))
+    if path.exists():
+        with sqlite3.connect(path) as source:
+            previous=source.execute('PRAGMA user_version').fetchone()[0]
+            if previous>11:raise RuntimeError('Nicht unterstützte Datenbankversion')
+            if previous<11:
+                backup=tenant_dir()/'backups';backup.mkdir(exist_ok=True)
+                target=backup/f'before-organizers-schema-{previous}.sqlite3'
+                if not target.exists():
+                    with sqlite3.connect(target) as destination:source.backup(destination)
     Base.metadata.create_all(engine)
     with engine.begin() as conn:
         version = conn.exec_driver_sql('PRAGMA user_version').scalar()
-        if version not in (0,1,2,3,4,5,6,7,8,9,10): raise RuntimeError('Nicht unterstützte Datenbankversion')
+        if version not in (0,1,2,3,4,5,6,7,8,9,10,11): raise RuntimeError('Nicht unterstützte Datenbankversion')
         columns={r[1] for r in conn.exec_driver_sql('PRAGMA table_info(section_results)')}
         for column in ('error1','error2'):
             if column not in columns:
@@ -58,10 +69,34 @@ async def lifespan(app):
         if version < 10:
             conn.exec_driver_sql("UPDATE event_classes SET color='red' WHERE color='pink'")
             conn.exec_driver_sql("UPDATE event_classes SET color='blue' WHERE color='purple'")
-        conn.exec_driver_sql('PRAGMA user_version=10')
+        import uuid
+        from datetime import datetime, timezone
+        for table in ('events','drivers','vehicles','entries','teams','section_results','entry_changes'):
+            cols={r[1] for r in conn.exec_driver_sql(f'PRAGMA table_info({table})')}
+            if 'uid' not in cols: conn.exec_driver_sql(f'ALTER TABLE {table} ADD COLUMN uid VARCHAR')
+            for row_id, in conn.exec_driver_sql(f"SELECT id FROM {table} WHERE uid IS NULL OR uid='' ").fetchall():
+                conn.exec_driver_sql(f'UPDATE {table} SET uid=? WHERE id=?',(str(uuid.uuid4()),row_id))
+            conn.exec_driver_sql(f'CREATE UNIQUE INDEX IF NOT EXISTS {table}_uid ON {table}(uid)')
+        cols={r[1] for r in conn.exec_driver_sql('PRAGMA table_info(events)')}
+        if 'revision' not in cols: conn.exec_driver_sql('ALTER TABLE events ADD COLUMN revision INTEGER NOT NULL DEFAULT 1')
+        if 'updated_at' not in cols:
+            conn.exec_driver_sql("ALTER TABLE events ADD COLUMN updated_at VARCHAR NOT NULL DEFAULT ''")
+            conn.exec_driver_sql('UPDATE events SET updated_at=?',(datetime.now(timezone.utc).isoformat(),))
+        conn.exec_driver_sql('PRAGMA user_version=11')
+
+@asynccontextmanager
+async def lifespan(app):
+    app.state.database_gate=anyio.Lock()
+    from backend.services.identity import initialize_identity, organizers
+    from backend.database import current_tenant
+    initialize_identity()
+    for tenant in organizers():
+        token=current_tenant.set(tenant)
+        try: initialize_database()
+        finally: current_tenant.reset(token)
     yield
 
-app = FastAPI(title='Autotrial', version='1.0.0', lifespan=lifespan)
+app = FastAPI(title='Autotrial', version='1.1.0-dev', lifespan=lifespan)
 # Hold the gate through response completion and dependency cleanup, including downloads.
 class DatabaseGate:
     def __init__(self,app): self.app=app
@@ -82,6 +117,11 @@ class DatabaseGate:
             await self.app(scope,receive,send)
 
 app.add_middleware(DatabaseGate)
+from backend.identity_ui import IdentityMiddleware, router as identity_router
+app.add_middleware(IdentityMiddleware)
+app.include_router(identity_router)
+from backend.transfer_ui import router as transfer_router
+app.include_router(transfer_router)
 
 from backend.settings_ui import router as settings_router
 app.include_router(settings_router)
@@ -123,6 +163,9 @@ def render(request,name,**context):
         with SessionLocal() as session:
             context['class_colors']={c.code:c.color for c in session.scalars(select(EventClass).where(EventClass.event_id==active.id))}
     else: context['class_colors']={}
+    from backend.database import current_user,current_tenant
+    context['user']=current_user.get()
+    context['tenant']=current_tenant.get()
     config=settings()
     context['logo_url']='/ui/settings/logo' if config['logo_enabled'] else None
     response=templates.TemplateResponse(request=request,name=name,context=context)
@@ -144,7 +187,7 @@ def help_page(request:Request):
 @app.get('/health')
 def health(db:Session=Depends(get_db)):
     db.execute(text('SELECT 1'))
-    return {'status':'ok','version':'1.0.0'}
+    return {'status':'ok','version':'1.1.0-dev'}
 
 @app.get('/')
 def root(): return RedirectResponse('/ui/events')

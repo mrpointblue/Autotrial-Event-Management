@@ -1,7 +1,9 @@
-# Autotrial · 1.0.0
+# Autotrial · Veranstalterverwaltung (Entwicklungsstand 1.1)
 
 Eigenständiges Schwesterprojekt der Quad Parallel Race Software: Nennung,
-Papierbordkarten und nachträgliche Auswertung. Erste stabile Version 1.0.0.
+Papierbordkarten und nachträgliche Auswertung mit getrennten Veranstaltern, Benutzerrollen und Veranstaltungstransport.
+
+Die stabile Version 1.0.0 bleibt unverändert verfügbar. Die hier beschriebenen neuen Funktionen werden aus dem aktuellen Quellstand gebaut.
 
 ## Docker-only starten
 
@@ -25,10 +27,10 @@ Oberfläche: http://localhost:8020 · API-Dokumentation: http://localhost:8020/d
 
 Port 8020 vermeidet Konflikte mit Quad Race (8000/8010). Standardmäßig ist nur
 lokaler Zugriff möglich. Für das vertrauenswürdige Veranstaltungsnetz `.env.example`
-nach `.env` kopieren und `AUTOTRIAL_BIND=0.0.0.0` setzen. Noch keine Anmeldung oder
-Rollenverwaltung; nicht öffentlich ins Internet stellen.
+nach `.env` kopieren und `AUTOTRIAL_BIND=0.0.0.0` setzen. Benutzeranmeldung und Rollenverwaltung sind vorhanden. Für Zugriff außerhalb eines
+vertrauenswürdigen lokalen Netzes HTTPS über einen Reverse Proxy verwenden.
 
-Ein Container enthält FastAPI, Jinja-Oberfläche und SQLite. Persistentes Volume
+Ein Container enthält FastAPI, Jinja-Oberfläche und SQLite. Veranstalterdaten sind in getrennten SQLite-Dateien gespeichert; Konten und Veranstalter-IDs liegen in einem zentralen Identitätsverzeichnis. Persistentes Volume
 `autotrial_autotrial-data`. Kein Kiosk, kein Monitor, keine Zeitnahme, kein
 Host-Updater, keine Hardwareberechtigungen. Der Veranstaltungsbetrieb benötigt
 nach dem Image-Build kein Internet und keine externen Schriftarten/CDNs.
@@ -224,7 +226,7 @@ Versionsprüfung schützt vor dem Überschreiben zwischenzeitlicher Änderungen.
 
 Oben rechts führt „Einstellungen“ zu Zeit, Datenbank und Logo. Zeitzone sowie eine optional vom Browser oder manuell übernommene Anwendungszeit werden dauerhaft gespeichert. Die Rechner-/Docker-Hostzeit wird nicht verändert; SYS_TIME oder zusätzliche Containerrechte sind nicht erforderlich. „Wieder Rechnerzeit verwenden“ entfernt den Zeitversatz. Neue Änderungsprotokolle verwenden die Autotrial-Zeit, vorhandene Zeitstempel werden nur in der gewählten Zeitzone angezeigt.
 
-Der Datenbankexport verwendet die SQLite-Backup-Schnittstelle und enthält auch Einstellungen und Logo. Der Import akzeptiert passende Exporte mit Schema 7 bis 100 MB. Vor dem Ersetzen wird unter `/app/data/backups` automatisch eine herunterladbare Sicherung angelegt. Ein fehlgeschlagener Import setzt die Datenbank aus dieser Sicherung zurück. Während eines Imports werden andere Anfragen zurückgestellt. **Die Anwendung muss mit einem Uvicorn-Worker betrieben werden**, wie in Dockerfile/Compose vorgegeben, damit die Importsperre alle Schreibzugriffe umfasst. Sicherungsdateien bleiben im persistenten Docker-Volume, bis sie administrativ entfernt werden.
+Der Datenbankexport verwendet die SQLite-Backup-Schnittstelle und enthält auch Einstellungen und Logo. Der Import akzeptiert passende Exporte mit Schema 11 bis 100 MB. Vor dem Ersetzen wird unter `/app/data/backups` automatisch eine herunterladbare Sicherung angelegt. Ein fehlgeschlagener Import setzt die Datenbank aus dieser Sicherung zurück. Während eines Imports werden andere Anfragen zurückgestellt. **Die Anwendung muss mit einem Uvicorn-Worker betrieben werden**, wie in Dockerfile/Compose vorgegeben, damit die Importsperre alle Schreibzugriffe umfasst. Sicherungsdateien bleiben im persistenten Docker-Volume, bis sie administrativ entfernt werden.
 
 Vereinslogos können als PNG/JPG bis 5 MB und 16 Megapixel hochgeladen werden. Die Anwendung prüft das Bild und speichert eine normalisierte PNG-Version in der Datenbank. Starter-, Ergebnis- und Mannschaftslisten nutzen das Logo; dauerhafte Fahrzeugkarten bleiben ohne Logo. Das MSC-Standardlogo kann wiederhergestellt oder der Druck ohne Logo gewählt werden.
 
@@ -252,3 +254,62 @@ Alle elf Fehlerkategorien entsprechen der Eingabemaske, einschließlich drei get
 900-Punkte-Spalten. Reihenfolge, Namen und Punktwerte stammen für Druck und Erfassung
 aus der gemeinsamen Definition in `backend/templates/penalties.html`. Es wird keine zusätzliche
 Strafentscheidung aus der Druckfunktion abgeleitet.
+
+
+## Neue Veranstalterverwaltung verwenden
+
+Die neue Version zunächst aus dem Quellstand starten:
+
+```sh
+docker compose up -d --build --wait
+docker compose exec app cat /app/data/setup-token.txt
+```
+
+Den einmaligen Einrichtungsschlüssel auf der Einrichtungsseite eingeben und ein
+Administratorkonto mit mindestens zwölf Zeichen Passwort anlegen. Danach wird die
+Schlüsseldatei entfernt. Es gibt kein Standardpasswort. Optional kann vor dem ersten
+Start `AUTOTRIAL_SETUP_TOKEN` als Umgebungsvariable gesetzt werden (nicht in Git ablegen).
+
+Bestehende Daten und das bisherige Logo gehören nach der automatischen Umstellung
+zum Standard-Veranstalter. Vor der Umstellung wird pro vorhandenem Datenbereich eine
+Sicherung unter `backups/before-organizers-schema-*.sqlite3` angelegt.
+
+Unter **Veranstalter / Benutzer** kann der Administrator Veranstalter anlegen und
+wechseln. Veranstalter-Administratoren verwalten nur den eigenen Veranstalter und
+dessen Benutzer. Bearbeiter können Veranstaltungen und Stammdaten bearbeiten;
+Lesekonten können ansehen, drucken und exportieren. Rechte gelten serverseitig auch
+bei direkten API-Aufrufen. Sitzungen laufen nach zwölf Stunden ab.
+
+## Veranstaltungen transportieren
+
+**Veranstaltung exportieren** liefert eine einzelne `.trialdata`-Datei. Beim Anlegen
+wird **Sollen Daten importiert werden? → Ja** angeboten. Die Datei enthält eine
+Veranstaltung mit Klassen, Nennungen, Ergebnissen, Änderungsverlauf und Mannschaften
+sowie die Fahrer, Fahrzeuge und Zuordnungen des Veranstalters. Veranstalterprofil und
+Logo sind enthalten, Benutzerkonten und Passwörter nicht. Persönliche Teilnehmerdaten
+sind daher Bestandteil dieser Datei.
+
+Auf dem Zielsystem muss derselbe Veranstalter mit derselben UUID ausgewählt sein.
+Ein übergeordneter Administrator kann ihn unter Verwendung dieser ID anlegen.
+Ein Import übernimmt keine fremde Veranstalteridentität und kann nicht in einen
+anderen Veranstalterbereich schreiben. Profile und Logos werden nur durch
+Administratoren und nur in noch leere Felder übernommen. Konten werden lokal verwaltet.
+
+Gleiche Veranstaltungs-UUID und gleicher Inhalt: keine erneute Anlage. Abweichende
+Stände: Konflikthinweis, kein Überschreiben. Startnummernkollisionen und widersprüchliche
+Stammdaten führen zum vollständigen Abbruch ohne Teilimport. Automatisches Mischen
+zweier bearbeiteter Stände ist ausdrücklich noch nicht implementiert.
+
+Veranstaltungen tragen UUID, Änderungsstand und UTC-Änderungszeit. Ein Inhaltshash und
+eine gemeinsame Ausgangsversion ermöglichen die Unterscheidung von identischen,
+neuen, lokal geänderten und beidseitig geänderten Ständen. Unabhängige Änderungszähler
+werden nicht allein als Beweis für einen neueren Stand verwendet.
+
+## Vollständige Installationssicherung
+
+Die Sicherungsfunktion in Einstellungen sichert den ausgewählten Veranstalter.
+Für eine komplette Installationssicherung einschließlich Konten und aller Veranstalter
+bei gestopptem Container das gesamte persistente Volume sichern. Es enthält
+`identity.sqlite3`, den bisherigen Standard-Datenbereich und `organizers/<UUID>/`.
+Die Einzeldatei `.trialdata` ist für den Veranstaltungstransport vorgesehen, nicht
+als Ersatz für die Sicherung sämtlicher Benutzerkonten.
