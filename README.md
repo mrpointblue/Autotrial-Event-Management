@@ -262,13 +262,13 @@ Die neue Version zunächst aus dem Quellstand starten:
 
 ```sh
 docker compose up -d --build --wait
-docker compose exec app cat /app/data/setup-token.txt
 ```
 
-Den einmaligen Einrichtungsschlüssel auf der Einrichtungsseite eingeben und ein
-Administratorkonto mit mindestens zwölf Zeichen Passwort anlegen. Danach wird die
-Schlüsseldatei entfernt. Es gibt kein Standardpasswort. Optional kann vor dem ersten
-Start `AUTOTRIAL_SETUP_TOKEN` als Umgebungsvariable gesetzt werden (nicht in Git ablegen).
+Beim ersten Öffnen im Browser einen Benutzernamen und ein Passwort mit mindestens
+zwölf Zeichen festlegen. Dieses erste Konto ist der Administrator. Danach ist die
+Ersteinrichtung gesperrt; weitere Benutzer werden in der Benutzerverwaltung angelegt.
+Es gibt keinen Einrichtungsschlüssel und kein Standardpasswort. Die Ersteinrichtung
+am lokalen Rechner abschließen, bevor die Anwendung im Veranstaltungsnetz freigegeben wird.
 
 Bestehende Daten und das bisherige Logo gehören nach der automatischen Umstellung
 zum Standard-Veranstalter. Vor der Umstellung wird pro vorhandenem Datenbereich eine

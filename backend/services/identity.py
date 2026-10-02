@@ -1,5 +1,5 @@
 """Central identity catalog; event data lives in isolated organizer stores."""
-import hashlib,hmac,os,secrets,sqlite3,time,uuid
+import hashlib,hmac,secrets,sqlite3,time,uuid
 from contextlib import contextmanager
 from backend.database import DATA_DIR
 
@@ -21,9 +21,6 @@ def initialize_identity():
         ''')
         if not db.execute('SELECT 1 FROM organizers').fetchone():
             db.execute('INSERT INTO organizers(id,name,is_default) VALUES (?,?,1)',(str(uuid.uuid4()),'Standard-Veranstalter'))
-    path=DATA_DIR/'setup-token.txt'
-    if not has_users() and not path.exists():
-        path.write_text(os.environ.get('AUTOTRIAL_SETUP_TOKEN') or secrets.token_urlsafe(24));path.chmod(0o600)
 
 def has_users():
     with catalog() as db:return bool(db.execute('SELECT 1 FROM users').fetchone())

@@ -185,3 +185,8 @@ def test_stale_organizer_forms_are_rejected(client):
     make_tenant(client)
     assert client.post('/api/events',json=dict(name='Wrong tab',event_date='2026-10-03'),headers={'X-Trial-Organizer':old['id']}).status_code==409
     assert client.post('/ui/admin/profile?_tenant='+old['id'],data=dict(name='Wrong tab')).status_code==409
+
+
+def test_setup_is_closed_after_first_account(client):
+    assert client.get('/setup',follow_redirects=False).status_code==303
+    assert client.post('/setup',data=dict(username='secondadmin',password='another-password-long'),follow_redirects=False).status_code==409

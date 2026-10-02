@@ -1,4 +1,4 @@
-import hashlib,hmac,secrets,time,uuid
+import hashlib,secrets,time,uuid
 from fastapi import APIRouter,Form,Request,HTTPException
 from fastapi.responses import RedirectResponse,JSONResponse,HTMLResponse
 from starlette.requests import Request as StarletteRequest
@@ -52,9 +52,7 @@ def setup_page(request:Request):
     return render(request,'login.html',setup=True)
 
 @router.post('/setup')
-def setup(username:str=Form(...),password:str=Form(...),setup_token:str=Form(...)):
-    expected=(DATA_DIR/'setup-token.txt').read_text() if (DATA_DIR/'setup-token.txt').exists() else ''
-    if not expected or not hmac.compare_digest(expected,setup_token):raise HTTPException(403,'Einrichtungsschlüssel ungültig.')
+def setup(username:str=Form(...),password:str=Form(...)):
     if not 3<=len(username.strip())<=100 or not 12<=len(password)<=256:raise HTTPException(422,'Benutzername mindestens 3 Zeichen, Passwort 12–256 Zeichen.')
     with catalog() as db:
         db.execute('BEGIN IMMEDIATE')
