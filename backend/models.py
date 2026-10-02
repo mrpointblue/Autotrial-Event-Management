@@ -3,7 +3,7 @@ from uuid import uuid4
 from decimal import Decimal
 from sqlalchemy import Boolean, CheckConstraint, Date, ForeignKey, Index, Integer, JSON, Numeric, String, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from backend.database import Base
+from backend.database import Base, organizer_id
 
 CLASSES = ('O1','O2','S1','S2','S3','V1','V2','P','J','Q1','Q2a','Q2b','SbS')
 
@@ -56,6 +56,7 @@ class Event(Base):
     event_date: Mapped[date] = mapped_column(Date)
     location: Mapped[str] = mapped_column(default='')
     organizer: Mapped[str] = mapped_column(default='')
+    organizer_id: Mapped[str] = mapped_column(String,default=organizer_id)
     section_count: Mapped[int]
     rounds: Mapped[int] = mapped_column(default=1)
     closed: Mapped[bool] = mapped_column(default=False,server_default='0')

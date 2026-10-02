@@ -47,7 +47,7 @@ Ränge werden nach der auf zwei Nachkommastellen gerundeten Gesamtsumme bestimmt
 
 Entry-Versionen verhindern das stille Überschreiben veralteter Eingabemasken.
 Unique-Constraints und Transaktionen sichern Nennungen und Standardzuordnungen.
-Fremdschlüssel sind aktiv. Aktuelle Schema-Version: SQLite `user_version = 11`.
+Fremdschlüssel sind aktiv. Aktuelle Schema-Version: SQLite `user_version = 12`.
 
 Fehler1 wird aus allen getrennt erfassten Sektionen summiert und einmal durch den
 HCF des Entry-Snapshots geteilt. Fehler2 und etwaige alte Endwerte werden addiert.
@@ -92,7 +92,7 @@ In der Summenerfassung wird gefahren = vorgeschrieben − Nichtbefahren berechne
 Bei Rohpunktsummen gibt es eine separate Anzahl Nichtbefahren; die Strafpunkte selbst müssen bereits in Fehler2 enthalten sein. Das alte Feld gefahrene Sektionen ist aus dem Formular entfernt; ältere API-Clients werden weiterhin unterstützt. Bordkarten drucken die klassenspezifische Gesamtzahl, mit höchstens fünf Zeilen je Blatt.
 
 
-## Veranstalter und Identität (Schema 11)
+## Veranstalter und Identität (Schema 12)
 
 Das Identitätsverzeichnis `identity.sqlite3` enthält Veranstalter (UUID, Name,
 Anschrift, Kontakt), Benutzer (scrypt-Passworthash, Rolle, Veranstalter-ID), gehashte
@@ -108,6 +108,7 @@ Bereich nicht über URL- oder Formulardaten wählen. Ressourcen-IDs gelten lokal
 für Veranstaltungen, Fahrer, Fahrzeuge, Nennungen, Ergebnisse, Protokolle und Teams
 sind die transportablen Identitäten.
 
+`Event.organizer_id` speichert die Veranstalter-UUID zusätzlich zur strukturellen Trennung.
 `Event.revision` und `updated_at` werden konservativ auch bei Änderungen an gemeinsam
 verwendeten Stammdaten aktualisiert. Importierte Versionen bleiben erhalten.
 `.trialdata` Format 1 ist begrenztes UTF-8-JSON (20 MB), kein SQL und kein Archiv.

@@ -48,3 +48,11 @@ def SessionLocal():
 def get_db():
     with SessionLocal() as session:
         yield session
+
+
+def organizer_id():
+    tenant=current_tenant.get()
+    if tenant:return tenant['id']
+    from backend.services.identity import initialize_identity,organizers
+    initialize_identity()
+    return next(o['id'] for o in organizers() if o['is_default'])

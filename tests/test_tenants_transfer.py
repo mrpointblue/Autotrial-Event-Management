@@ -92,6 +92,8 @@ def test_round_trip_with_remapped_local_ids_and_no_overwrite(client):
     # Simulate the same organizer on a separate installation by changing only the
     # transport ownership for this isolated test store.
     data['organizer']['id']=uid
+    data['records']['events'][0]['organizer_id']=uid
+    data['digest']=digest(data['records'])
     r=client.post('/ui/events/import',files={'event_file':('event.trialdata',json.dumps(data).encode())})
     assert r.status_code==200,r.text
     token=current_tenant.set(next(o for o in organizers() if o['id']==uid))
@@ -114,6 +116,8 @@ def test_import_rolls_back_on_start_number_conflict(client):
     event,_,_=setup(client,count=1)
     data=client.get(f"/export/events/{event['id']}/trialdata").json()
     uid=make_tenant(client);data['organizer']['id']=uid
+    data['records']['events'][0]['organizer_id']=uid
+    data['digest']=digest(data['records'])
     post(client,'drivers',dict(start_number=100,name='Local driver'))
     r=client.post('/ui/events/import',files={'event_file':('event.trialdata',json.dumps(data).encode())})
     assert r.status_code==409

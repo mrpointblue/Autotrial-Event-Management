@@ -119,12 +119,15 @@ def validate_database(path):
     try:
         with sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True) as db:
             db.execute('PRAGMA trusted_schema=OFF')
-            if db.execute('PRAGMA user_version').fetchone()[0]!=11: raise ValueError('Bitte eine Datenbank aus der aktuellen Autotrial-Version importieren.')
+            if db.execute('PRAGMA user_version').fetchone()[0]!=12: raise ValueError('Bitte eine Datenbank aus der aktuellen Autotrial-Version importieren.')
             if db.execute('PRAGMA integrity_check').fetchone()[0]!='ok' or db.execute('PRAGMA foreign_key_check').fetchone(): raise ValueError('Die Datenbank ist beschädigt oder enthält ungültige Zuordnungen.')
             if db.execute("SELECT 1 FROM sqlite_master WHERE type IN ('trigger','view') OR upper(sql) LIKE '%CREATE VIRTUAL TABLE%'").fetchone(): raise ValueError('Die Datenbank enthält nicht unterstützte Datenbankobjekte.')
             for table in Base.metadata.sorted_tables:
                 actual={r[1]:r[2].upper() for r in db.execute('PRAGMA table_info("'+table.name+'")')}
                 if any(c.name not in actual or actual[c.name].replace(' ','')!=str(c.type.compile(engine.dialect)).upper().replace(' ','') for c in table.columns): raise ValueError('Die Datenbankstruktur passt nicht zu Autotrial.')
+            from backend.database import organizer_id
+            if db.execute('SELECT 1 FROM events WHERE organizer_id IS NULL OR organizer_id!=? LIMIT 1',(organizer_id(),)).fetchone():
+                raise ValueError('Diese Sicherung gehört zu einem anderen Veranstalter. Zum Übertragen bitte eine Veranstaltungsdatei verwenden.')
             import json
             record=db.execute("SELECT value FROM app_settings WHERE key='general'").fetchone()
             if record:

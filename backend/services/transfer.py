@@ -72,6 +72,7 @@ def read_package(raw):
         if set(data['records'])!=set(MODELS):fail('Veranstaltungsdatei ist unvollständig.')
         if digest(data['records'])!=data['digest']:fail('Die Veranstaltungsdatei ist beschädigt.')
         if len(data['records']['events'])!=1 or data['records']['events'][0]['id']!=data['event_id']:fail('Veranstaltungs-ID stimmt nicht überein.')
+        if data['records']['events'][0].get('organizer_id')!=data['organizer']['id']:fail('Veranstaltung und Veranstalter-ID passen nicht zusammen.')
         if data['revision']!=data['records']['events'][0]['revision']:fail('Änderungsstand stimmt nicht überein.')
         if sum(len(rows) for rows in data['records'].values())>100000:fail('Zu viele Einträge in der Datei.')
         ids={}

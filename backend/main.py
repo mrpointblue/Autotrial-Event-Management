@@ -28,8 +28,8 @@ def initialize_database():
     if path.exists():
         with sqlite3.connect(path) as source:
             previous=source.execute('PRAGMA user_version').fetchone()[0]
-            if previous>11:raise RuntimeError('Nicht unterstützte Datenbankversion')
-            if previous<11:
+            if previous>12:raise RuntimeError('Nicht unterstützte Datenbankversion')
+            if previous<12:
                 backup=tenant_dir()/'backups';backup.mkdir(exist_ok=True)
                 target=backup/f'before-organizers-schema-{previous}.sqlite3'
                 if not target.exists():
@@ -37,7 +37,7 @@ def initialize_database():
     Base.metadata.create_all(engine)
     with engine.begin() as conn:
         version = conn.exec_driver_sql('PRAGMA user_version').scalar()
-        if version not in (0,1,2,3,4,5,6,7,8,9,10,11): raise RuntimeError('Nicht unterstützte Datenbankversion')
+        if version not in (0,1,2,3,4,5,6,7,8,9,10,11,12): raise RuntimeError('Nicht unterstützte Datenbankversion')
         columns={r[1] for r in conn.exec_driver_sql('PRAGMA table_info(section_results)')}
         for column in ('error1','error2'):
             if column not in columns:
@@ -82,7 +82,11 @@ def initialize_database():
         if 'updated_at' not in cols:
             conn.exec_driver_sql("ALTER TABLE events ADD COLUMN updated_at VARCHAR NOT NULL DEFAULT ''")
             conn.exec_driver_sql('UPDATE events SET updated_at=?',(datetime.now(timezone.utc).isoformat(),))
-        conn.exec_driver_sql('PRAGMA user_version=11')
+        if 'organizer_id' not in cols:
+            from backend.database import organizer_id
+            conn.exec_driver_sql('ALTER TABLE events ADD COLUMN organizer_id VARCHAR')
+            conn.exec_driver_sql('UPDATE events SET organizer_id=?',(organizer_id(),))
+        conn.exec_driver_sql('PRAGMA user_version=12')
 
 @asynccontextmanager
 async def lifespan(app):
