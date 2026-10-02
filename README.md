@@ -289,8 +289,8 @@ sowie die Fahrer, Fahrzeuge und Zuordnungen des Veranstalters. Veranstalterprofi
 Logo sind enthalten, Benutzerkonten und Passwörter nicht. Persönliche Teilnehmerdaten
 sind daher Bestandteil dieser Datei.
 
-Auf dem Zielsystem muss derselbe Veranstalter mit derselben UUID ausgewählt sein.
-Ein übergeordneter Administrator kann ihn unter Verwendung dieser ID anlegen.
+Auf dem Zielsystem muss derselbe Veranstalter ausgewählt sein.
+Ein übergeordneter Administrator übernimmt ihn über „Veranstalter aus Datei übernehmen“; die interne Kennung wird automatisch ausgelesen. Angezeigt werden kurze Nummern wie V001 und V002.
 Ein Import übernimmt keine fremde Veranstalteridentität und kann nicht in einen
 anderen Veranstalterbereich schreiben. Profile und Logos werden nur durch
 Administratoren und nur in noch leere Felder übernommen. Konten werden lokal verwaltet.

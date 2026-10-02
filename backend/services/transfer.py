@@ -128,7 +128,7 @@ def read_package(raw):
 
 def assess(db,data):
     if data['organizer']['id']!=current_tenant.get()['id']:
-        raise HTTPException(409,'Diese Datei gehört zu einem anderen Veranstalter: '+str(data['organizer'].get('name',''))+' ('+data['organizer']['id']+'). Ein Administrator muss diesen Veranstalter zunächst mit dieser ID anlegen bzw. auswählen.')
+        raise HTTPException(409,'Diese Datei gehört zu einem anderen Veranstalter: '+str(data['organizer'].get('name',''))+'. Ein Administrator kann ihn unter Veranstalter / Benutzer → Veranstalter aus Datei übernehmen auswählen.')
     local=db.scalar(select(Event).where(Event.uid==data['event_id']))
     if not local:return 'new',None
     local_digest=digest(records(db,local))

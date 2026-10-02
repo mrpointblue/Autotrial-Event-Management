@@ -1,5 +1,5 @@
 import hashlib,secrets,time,uuid
-from fastapi import APIRouter,Form,Request,HTTPException
+from fastapi import APIRouter,Form,Request,HTTPException,UploadFile,File
 from fastapi.responses import RedirectResponse,JSONResponse,HTMLResponse
 from starlette.requests import Request as StarletteRequest
 from backend.database import DATA_DIR,current_tenant,current_user
@@ -107,7 +107,7 @@ def create_organizer(name:str=Form(...),organizer_id:str=Form('')):
     except ValueError:raise HTTPException(422,'Ungültige Veranstalter-ID.')
     with catalog() as db:
         if db.execute('SELECT 1 FROM organizers WHERE id=?',(uid,)).fetchone():raise HTTPException(409,'Veranstalter-ID existiert bereits.')
-        db.execute('INSERT INTO organizers(id,name) VALUES (?,?)',(uid,name))
+        db.execute('INSERT INTO organizers(id,name,number) VALUES (?,?,(SELECT COALESCE(MAX(number),0)+1 FROM organizers))',(uid,name))
     tenant=next(t for t in organizers() if t['id']==uid);token=current_tenant.set(tenant)
     try:
         from backend.main import initialize_database
@@ -148,3 +148,14 @@ def disable_user(user_id:str):
         if target['id']==actor['id'] or (target['role']=='admin' and actor['role']!='admin'):raise HTTPException(403,'Dieses Konto kann nicht deaktiviert werden.')
         db.execute('UPDATE users SET active=0 WHERE id=?',(user_id,));db.execute('DELETE FROM sessions WHERE user_id=?',(user_id,))
     return redirect('/ui/admin')
+
+
+@router.post('/ui/admin/organizers/from-file')
+async def organizer_from_file(request:Request,event_file:UploadFile=File(...)):
+    if require_admin()['role']!='admin':raise HTTPException(403,'Nur der übergeordnete Administrator darf Veranstalter übernehmen.')
+    from backend.services.transfer import read_package,MAX_SIZE
+    data=read_package(await event_file.read(MAX_SIZE+1))
+    uid=data['organizer']['id']
+    if uid not in {o['id'] for o in organizers()}:
+        create_organizer(name=data['organizer']['name'],organizer_id=uid)
+    return select_organizer(request,organizer_id=uid)

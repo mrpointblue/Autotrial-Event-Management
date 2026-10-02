@@ -19,8 +19,14 @@ def initialize_identity():
         CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id),organizer_id TEXT NOT NULL REFERENCES organizers(id),expires REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS login_attempts(client TEXT PRIMARY KEY,count INTEGER NOT NULL,until REAL NOT NULL);
         ''')
+        if 'number' not in {r[1] for r in db.execute('PRAGMA table_info(organizers)')}:
+            db.execute('ALTER TABLE organizers ADD COLUMN number INTEGER')
         if not db.execute('SELECT 1 FROM organizers').fetchone():
             db.execute('INSERT INTO organizers(id,name,is_default) VALUES (?,?,1)',(str(uuid.uuid4()),'Standard-Veranstalter'))
+        next_number=db.execute('SELECT COALESCE(MAX(number),0)+1 FROM organizers').fetchone()[0]
+        for row in db.execute('SELECT id FROM organizers WHERE number IS NULL ORDER BY is_default DESC,rowid').fetchall():
+            db.execute('UPDATE organizers SET number=? WHERE id=?',(next_number,row['id']));next_number+=1
+        db.execute('CREATE UNIQUE INDEX IF NOT EXISTS organizer_number ON organizers(number)')
 
 def has_users():
     with catalog() as db:return bool(db.execute('SELECT 1 FROM users').fetchone())

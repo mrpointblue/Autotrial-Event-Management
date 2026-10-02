@@ -190,3 +190,27 @@ def test_stale_organizer_forms_are_rejected(client):
 def test_setup_is_closed_after_first_account(client):
     assert client.get('/setup',follow_redirects=False).status_code==303
     assert client.post('/setup',data=dict(username='secondadmin',password='another-password-long'),follow_redirects=False).status_code==409
+
+
+def test_short_organizer_numbers_and_recognition_from_file(client):
+    from backend.services.identity import authenticated
+    _,initial=authenticated(client.cookies.get('trial_session'))
+    html=client.get('/ui/admin').text
+    assert f'V{initial["number"]:03d}' in html
+    assert 'Vorhandene Veranstalter-ID' not in html
+    event,_,_=setup(client,count=1)
+    data=client.get(f"/export/events/{event['id']}/trialdata").json()
+    new_id=str(uuid.uuid4());data['organizer']['id']=new_id
+    data['organizer']['name']='Transportierter Verein'
+    data['records']['events'][0]['organizer_id']=new_id
+    data['digest']=digest(data['records'])
+    response=client.post('/ui/admin/organizers/from-file',files={'event_file':('event.trialdata',json.dumps(data).encode())},follow_redirects=False)
+    assert response.status_code==303,response.text
+    _,selected=authenticated(client.cookies.get('trial_session'))
+    assert selected['id']==new_id and selected['number']!=initial['number']
+    assert selected['name']=='Transportierter Verein'
+    number=selected['number']
+    response=client.post('/ui/admin/organizers/from-file',files={'event_file':('event.trialdata',json.dumps(data).encode())},follow_redirects=False)
+    assert response.status_code==303
+    _,again=authenticated(client.cookies.get('trial_session'))
+    assert again['number']==number
