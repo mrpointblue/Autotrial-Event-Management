@@ -32,6 +32,9 @@ class IdentityMiddleware:
         if not user or not tenant:
             response=JSONResponse({'detail':'Bitte anmelden.'},401) if path.startswith('/api/') else redirect('/login' if has_users() else '/setup')
             return await response(scope,receive,send)
+        guard=request.headers.get('x-trial-organizer') or request.query_params.get('_tenant')
+        if method not in ('GET','HEAD','OPTIONS') and guard and guard!=tenant['id']:
+            return await JSONResponse({'detail':'Der Veranstalter wurde in einem anderen Fenster gewechselt. Bitte diese Seite neu laden.'},409)(scope,receive,send)
         restricted=path.startswith(('/ui/settings','/api/settings','/ui/admin','/api/admin')) and not (method=='GET' and path=='/ui/settings/logo')
         if restricted and user['role'] not in ('admin','organizer_admin'):
             return await JSONResponse({'detail':'Nur Administratoren dürfen Einstellungen verwalten.'},403)(scope,receive,send)

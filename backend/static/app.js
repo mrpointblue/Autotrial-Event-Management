@@ -3,7 +3,7 @@ const displayHcf = value => Number(value).toLocaleString('de-DE',{minimumFractio
 const message = document.getElementById('message');
 function show(text, error=false) { message.hidden=false; message.className=error?'error':'success'; message.textContent=text; }
 async function api(url, body, method='POST') {
-  const response=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
+  const response=await fetch(url,{method,headers:{'Content-Type':'application/json','X-Trial-Organizer':document.body.dataset.organizer||''},body:body===undefined?undefined:JSON.stringify(body)});
   const data=await response.json();
   if(!response.ok) throw new Error(typeof data.detail==='string'?data.detail:JSON.stringify(data.detail));
   return data;

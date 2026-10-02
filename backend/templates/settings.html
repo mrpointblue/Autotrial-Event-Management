@@ -12,13 +12,13 @@
 <section class="card"><h2>Sicherung dieses Veranstalters</h2><p>Sicherung der Fahrer, Fahrzeuge, Zuordnungen, Veranstaltungen, Ergebnisse und Einstellungen einschließlich Logo.</p>
 <a class="button" href="/ui/settings/database/export">Sicherung herunterladen</a>
 <details><summary>Sicherung wiederherstellen</summary><p class="hint">Beim Import werden die aktuellen Daten ersetzt. Vorher wird automatisch eine Sicherung erstellt. Verwendbar sind Sicherungen der aktuellen Autotrial-Version, maximal 100 MB.</p>
-<form action="/ui/settings/database/import" method="post" enctype="multipart/form-data" data-confirm="Daten dieses Veranstalters wirklich ersetzen? Vorher wird automatisch eine Sicherung angelegt."><label>Sicherungsdatei<input type="file" name="database_file" accept=".sqlite3,.sqlite,.db" required></label><label>Zur Bestätigung ERSETZEN eingeben<input name="confirmation" pattern="ERSETZEN" required autocomplete="off"></label><button class="danger-button">Sicherung wiederherstellen</button></form></details>
+<form action="/ui/settings/database/import?_tenant={{ tenant.id }}" method="post" enctype="multipart/form-data" data-confirm="Daten dieses Veranstalters wirklich ersetzen? Vorher wird automatisch eine Sicherung angelegt."><label>Sicherungsdatei<input type="file" name="database_file" accept=".sqlite3,.sqlite,.db" required></label><label>Zur Bestätigung ERSETZEN eingeben<input name="confirmation" pattern="ERSETZEN" required autocomplete="off"></label><button class="danger-button">Sicherung wiederherstellen</button></form></details>
 {% if backups %}<h3>Automatische Sicherungen vor Importen</h3><div class="table-wrap"><table><thead><tr><th>Datei</th><th>Größe</th><th></th></tr></thead><tbody>{% for backup in backups %}<tr><td>{{ backup.name }}</td><td>{{ backup.size }} MB</td><td><a href="/ui/settings/database/backups/{{ backup.name }}">Herunterladen</a></td></tr>{% endfor %}</tbody></table></div>{% endif %}
 </section>
 <section class="card"><h2>Logo</h2><p>Für Starterlisten, Ergebnislisten und Mannschaftswertung. Dauerhafte Fahrzeugkarten bleiben ohne Logo.</p>
 {% if logo_url %}<img class="settings-logo-preview" src="{{ logo_url }}" alt="Aktuelles Vereinslogo">{% else %}<p>Kein Logo hinterlegt.</p>{% endif %}
-<form action="/ui/settings/logo" method="post" enctype="multipart/form-data"><label>PNG oder JPG, maximal 5 MB<input type="file" name="logo" accept="image/png,image/jpeg,.png,.jpg,.jpeg" required></label><button>Logo speichern</button></form>
-<form action="/ui/settings/logo/remove" method="post"><button class="secondary-button">Ohne Logo drucken</button></form>
-<form action="/ui/settings/logo/default" method="post"><button class="secondary-button">MSC-Standardlogo verwenden</button></form>
+<form action="/ui/settings/logo?_tenant={{ tenant.id }}" method="post" enctype="multipart/form-data"><label>PNG oder JPG, maximal 5 MB<input type="file" name="logo" accept="image/png,image/jpeg,.png,.jpg,.jpeg" required></label><button>Logo speichern</button></form>
+<form action="/ui/settings/logo/remove?_tenant={{ tenant.id }}" method="post"><button class="secondary-button">Ohne Logo drucken</button></form>
+<form action="/ui/settings/logo/default?_tenant={{ tenant.id }}" method="post"><button class="secondary-button">MSC-Standardlogo verwenden</button></form>
 </section>
 {% endblock %}
