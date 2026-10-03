@@ -214,3 +214,35 @@ def test_short_organizer_numbers_and_recognition_from_file(client):
     assert response.status_code==303
     _,again=authenticated(client.cookies.get('trial_session'))
     assert again['number']==number
+
+
+def test_create_club_with_access_and_login_selection(client):
+    uid=str(uuid.uuid4());name='clubadmin-'+uuid.uuid4().hex
+    r=client.post('/ui/admin/organizers',data=dict(name='Verein mit Zugang',organizer_id=uid,username=name,password='club-password-long'),follow_redirects=False)
+    assert r.status_code==303,r.text
+    assert 'Verein mit Zugang' in client.get('/login').text
+    with TestClient(app) as member:
+        assert member.post('/login',data=dict(username=name,password='club-password-long',organizer_id=uid),follow_redirects=False).status_code==303
+        from backend.services.identity import authenticated
+        user,tenant=authenticated(member.cookies.get('trial_session'))
+        assert tenant['id']==uid and user['role']=='organizer_admin'
+        other=next(o['id'] for o in organizers() if o['id']!=uid)
+        assert member.post('/login',data=dict(username=name,password='club-password-long',organizer_id=other),follow_redirects=False).status_code==401
+        assert member.post('/ui/admin/users',data=dict(username='notallowed',password='another-password-long',role='editor',organizer_id=other)).status_code==403
+        assert member.post('/ui/admin/users/'+user['id']+'/organizer',data=dict(organizer_id=other)).status_code==403
+
+
+def test_explicit_user_assignment_and_reassignment_revokes_access(client):
+    uid=make_tenant(client)
+    other=next(o['id'] for o in organizers() if o['id']!=uid)
+    name='assigned-'+uuid.uuid4().hex
+    assert client.post('/ui/admin/users',data=dict(username=name,password='another-password-long',role='editor',organizer_id=other),follow_redirects=False).status_code==303
+    with catalog() as db:
+        row=db.execute('SELECT * FROM users WHERE username=?',(name,)).fetchone()
+        user_id=row['id'];assert row['organizer_id']==other
+    assert name in client.get('/ui/admin').text
+    with TestClient(app) as member:
+        assert member.post('/login',data=dict(username=name,password='another-password-long',organizer_id=other),follow_redirects=False).status_code==303
+        assert client.post('/ui/admin/users/'+user_id+'/organizer',data=dict(organizer_id=uid),follow_redirects=False).status_code==303
+        assert member.get('/api/drivers').status_code==401
+        assert member.post('/login',data=dict(username=name,password='another-password-long',organizer_id=uid),follow_redirects=False).status_code==303

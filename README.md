@@ -313,3 +313,14 @@ bei gestopptem Container das gesamte persistente Volume sichern. Es enthält
 `identity.sqlite3`, den bisherigen Standard-Datenbereich und `organizers/<UUID>/`.
 Die Einzeldatei `.trialdata` ist für den Veranstaltungstransport vorgesehen, nicht
 als Ersatz für die Sicherung sämtlicher Benutzerkonten.
+
+
+### Verein und Benutzer zuordnen
+
+Die Anmeldung erfolgt mit **Verein → Benutzername → Passwort**. Beim Anlegen eines
+Veranstalters werden Benutzername und Passwort für dessen Vereinsadministrator gleich
+mit erfasst. Weitere Benutzer erhalten eine sichtbare Vereinsauswahl. Der übergeordnete
+Administrator sieht alle Benutzer mit Vereinsnamen und kann bestehende Zuordnungen
+ändern; dabei werden die Sitzungen des betroffenen Benutzers beendet. Vereinsadministratoren
+können Benutzer ausschließlich für ihren eigenen Verein anlegen. Bestehende Konten
+und Passwörter bleiben erhalten.

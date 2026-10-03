@@ -66,24 +66,26 @@ def setup(username:str=Form(...),password:str=Form(...)):
 def login_page(request:Request):
     if not has_users():return redirect('/setup')
     from backend.main import render
-    return render(request,'login.html',setup=False)
+    return render(request,'login.html',setup=False,organizers=[{'id':o['id'],'name':o['name'],'number':o['number']} for o in organizers()])
 
 @router.post('/login')
-def login(request:Request,username:str=Form(...),password:str=Form(...)):
+def login(request:Request,username:str=Form(...),password:str=Form(...),organizer_id:str=Form('')):
     if len(password)>256:raise HTTPException(401,'Anmeldung fehlgeschlagen.')
     key=request.client.host if request.client else 'unknown';now=time.time()
     with catalog() as db:
         attempt=db.execute('SELECT * FROM login_attempts WHERE client=?',(key,)).fetchone()
         if attempt and attempt['count']>=10 and attempt['until']>now:raise HTTPException(429,'Zu viele Versuche. Bitte in 15 Minuten erneut versuchen.')
         user=db.execute('SELECT * FROM users WHERE username=? AND active=1',(username,)).fetchone()
-        if not user or not check_password(password,user['password']):
+        selected=organizer_id or (user['organizer_id'] if user else '')
+        valid_selection=bool(db.execute('SELECT 1 FROM organizers WHERE id=?',(selected,)).fetchone())
+        if not user or not valid_selection or (user['role']!='admin' and user['organizer_id']!=selected) or not check_password(password,user['password']):
             count=attempt['count']+1 if attempt and attempt['until']>now else 1
             db.execute('INSERT OR REPLACE INTO login_attempts VALUES (?,?,?)',(key,count,now+900));db.commit()
             raise HTTPException(401,'Anmeldung fehlgeschlagen.')
         db.execute('DELETE FROM login_attempts WHERE client=?',(key,))
         token=secrets.token_urlsafe(32)
         db.execute('DELETE FROM sessions WHERE expires<?',(now,))
-        db.execute('INSERT INTO sessions VALUES (?,?,?,?)',(hashlib.sha256(token.encode()).hexdigest(),user['id'],user['organizer_id'],now+43200))
+        db.execute('INSERT INTO sessions VALUES (?,?,?,?)',(hashlib.sha256(token.encode()).hexdigest(),user['id'],selected,now+43200))
     response=redirect();response.set_cookie('trial_session',token,httponly=True,samesite='strict',secure=request.url.scheme=='https',max_age=43200);response.delete_cookie('active_event');return response
 
 @router.post('/logout')
@@ -95,19 +97,23 @@ def logout(request:Request):
 def admin_page(request:Request):
     user=require_admin();tenant=current_tenant.get()
     with catalog() as db:
-        users=[dict(r) for r in db.execute('SELECT id,username,role,organizer_id,active FROM users WHERE organizer_id=?',(tenant['id'],))]
+        users=[dict(r) for r in db.execute('SELECT u.id,u.username,u.role,u.organizer_id,u.active,o.name AS organizer_name,o.number AS organizer_number FROM users u JOIN organizers o ON o.id=u.organizer_id'+('' if user['role']=='admin' else ' WHERE u.organizer_id=?')+' ORDER BY o.number,u.username',() if user['role']=='admin' else (tenant['id'],))]
     from backend.main import render
     return render(request,'admin.html',users=users,organizers=organizers() if user['role']=='admin' else [tenant],roles=ROLES,page='admin')
 
 @router.post('/ui/admin/organizers')
-def create_organizer(name:str=Form(...),organizer_id:str=Form('')):
+def create_organizer(name:str=Form(...),organizer_id:str=Form(''),username:str=Form(''),password:str=Form('')):
     if require_admin()['role']!='admin':raise HTTPException(403,'Nur der übergeordnete Administrator darf Veranstalter anlegen.')
     if not name.strip() or len(name)>150:raise HTTPException(422,'Name erforderlich (maximal 150 Zeichen).')
+    if username or password:
+        if not 3<=len(username.strip())<=100 or not 12<=len(password)<=256:raise HTTPException(422,'Benutzername mindestens 3 Zeichen, Passwort 12–256 Zeichen.')
     try:uid=str(uuid.UUID(organizer_id)) if organizer_id else str(uuid.uuid4())
     except ValueError:raise HTTPException(422,'Ungültige Veranstalter-ID.')
     with catalog() as db:
         if db.execute('SELECT 1 FROM organizers WHERE id=?',(uid,)).fetchone():raise HTTPException(409,'Veranstalter-ID existiert bereits.')
+        if username and db.execute('SELECT 1 FROM users WHERE username=?',(username.strip(),)).fetchone():raise HTTPException(409,'Benutzername bereits vergeben.')
         db.execute('INSERT INTO organizers(id,name,number) VALUES (?,?,(SELECT COALESCE(MAX(number),0)+1 FROM organizers))',(uid,name))
+        if username:db.execute('INSERT INTO users VALUES (?,?,?,?,?,1)',(str(uuid.uuid4()),username.strip(),hash_password(password),'organizer_admin',uid))
     tenant=next(t for t in organizers() if t['id']==uid);token=current_tenant.set(tenant)
     try:
         from backend.main import initialize_database
@@ -130,20 +136,23 @@ def profile(name:str=Form(...),address:str=Form(''),contact:str=Form('')):
     return redirect('/ui/admin')
 
 @router.post('/ui/admin/users')
-def create_user(username:str=Form(...),password:str=Form(...),role:str=Form(...)):
+def create_user(username:str=Form(...),password:str=Form(...),role:str=Form(...),organizer_id:str=Form('')):
     user=require_admin()
     if role not in ROLES or (role=='admin' and user['role']!='admin'):raise HTTPException(403,'Diese Rolle darf nicht vergeben werden.')
     if not 3<=len(username.strip())<=100 or not 12<=len(password)<=256:raise HTTPException(422,'Benutzername mindestens 3 Zeichen, Passwort 12–256 Zeichen.')
+    selected=organizer_id or current_tenant.get()['id']
+    if user['role']!='admin' and selected!=current_tenant.get()['id']:raise HTTPException(403,'Benutzer dürfen nur dem eigenen Verein zugeordnet werden.')
+    if selected not in {o['id'] for o in organizers()}:raise HTTPException(404,'Verein nicht gefunden.')
     with catalog() as db:
         if db.execute('SELECT 1 FROM users WHERE username=?',(username.strip(),)).fetchone():raise HTTPException(409,'Benutzername bereits vergeben.')
-        db.execute('INSERT INTO users VALUES (?,?,?,?,?,1)',(str(uuid.uuid4()),username.strip(),hash_password(password),role,current_tenant.get()['id']))
+        db.execute('INSERT INTO users VALUES (?,?,?,?,?,1)',(str(uuid.uuid4()),username.strip(),hash_password(password),role,selected))
     return redirect('/ui/admin')
 
 @router.post('/ui/admin/users/{user_id}/disable')
 def disable_user(user_id:str):
     actor=require_admin()
     with catalog() as db:
-        target=db.execute('SELECT * FROM users WHERE id=? AND organizer_id=?',(user_id,current_tenant.get()['id'])).fetchone()
+        target=db.execute('SELECT * FROM users WHERE id=?'+('' if actor['role']=='admin' else ' AND organizer_id=?'),(user_id,) if actor['role']=='admin' else (user_id,current_tenant.get()['id'])).fetchone()
         if not target:raise HTTPException(404,'Benutzer nicht gefunden.')
         if target['id']==actor['id'] or (target['role']=='admin' and actor['role']!='admin'):raise HTTPException(403,'Dieses Konto kann nicht deaktiviert werden.')
         db.execute('UPDATE users SET active=0 WHERE id=?',(user_id,));db.execute('DELETE FROM sessions WHERE user_id=?',(user_id,))
@@ -157,5 +166,20 @@ async def organizer_from_file(request:Request,event_file:UploadFile=File(...)):
     data=read_package(await event_file.read(MAX_SIZE+1))
     uid=data['organizer']['id']
     if uid not in {o['id'] for o in organizers()}:
-        create_organizer(name=data['organizer']['name'],organizer_id=uid)
+        create_organizer(name=data['organizer']['name'],organizer_id=uid,username='',password='')
     return select_organizer(request,organizer_id=uid)
+
+
+@router.post('/ui/admin/users/{user_id}/organizer')
+def assign_user(user_id:str,organizer_id:str=Form(...)):
+    actor=require_admin()
+    if actor['role']!='admin':raise HTTPException(403,'Nur der übergeordnete Administrator darf die Vereinszuordnung ändern.')
+    if user_id==actor['id']:raise HTTPException(409,'Die eigene Zuordnung kann hier nicht geändert werden.')
+    with catalog() as db:
+        if not db.execute('SELECT 1 FROM organizers WHERE id=?',(organizer_id,)).fetchone():raise HTTPException(404,'Verein nicht gefunden.')
+        target=db.execute('SELECT * FROM users WHERE id=?',(user_id,)).fetchone()
+        if not target:raise HTTPException(404,'Benutzer nicht gefunden.')
+        if target['organizer_id']!=organizer_id:
+            db.execute('UPDATE users SET organizer_id=? WHERE id=?',(organizer_id,user_id))
+            db.execute('DELETE FROM sessions WHERE user_id=?',(user_id,))
+    return redirect('/ui/admin')
